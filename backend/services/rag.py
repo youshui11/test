@@ -23,9 +23,9 @@ def extract_text(path: Path, suffix: str) -> str:
         with zipfile.ZipFile(path) as archive:
             if sum(info.file_size for info in archive.infolist()) > 100 * 1024 * 1024:
                 raise ValueError('Word 文档解压后过大')
-        from convert_to_md import convert_docx
+        from agent.tools.convert_to_md import convert_docx
         return convert_docx(path)[0]
-    from convert_to_md import convert_pdf
+    from agent.tools.convert_to_md import convert_pdf
     return convert_pdf(path)[0]
 
 

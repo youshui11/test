@@ -22,13 +22,15 @@ Copy-Item backend/.env.example backend/.env
 | `DATABASE_URL` | 默认本机 `wendang` 数据库，使用提示词指定的开发账号 |
 | `JWT_SECRET` | 至少 32 字符，部署时独立随机生成 |
 | `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` | OpenAI 兼容聊天接口，例如 DeepSeek 聊天服务；模型名称以实际服务支持为准 |
-| `LLM_CONFIG_SOURCE` | `server` 直接复用根目录 `server.py` 中 DeepSeek 的密钥、模型、地址和思考开关；`env` 则读取 `.env` 中的聊天配置 |
+| `LLM_CONFIG_SOURCE` | `server` 调用 `agent/server.py` 中的 `deepseek_agent`；`env` 则使用 `.env` 中的聊天配置创建智能体 |
 | `LLM_PROVIDER` | 使用 `env` 配置时为 `openai` 或 `deepseek` |
 | `EMBEDDING_API_KEY` / `EMBEDDING_BASE_URL` / `EMBEDDING_MODEL` | 独立配置 embedding 服务，必须支持 1536 维向量及 `dimensions` 参数；默认 `text-embedding-3-small` |
 | `CORS_ORIGINS` | JSON 数组，列出允许访问 API 的前端来源 |
 | `MODEL_TIMEOUT_SECONDS` | 单轮检索和生成的总超时，默认 120 秒 |
 
-本机已使用 `LLM_CONFIG_SOURCE=server`：聊天密钥和模型只需维护根目录 `server.py` 中的 `DeepSeek(...)` 声明，无需复制到 `.env`。读取支持 `api_key`、`id`、`base_url` 的字符串字面量和 `use_thinking` 布尔值；配置变更后需重启后端。后端只解析该声明，不导入或运行示例服务器。若改用其他服务，可设置 `LLM_CONFIG_SOURCE=env` 并填写 `LLM_*`。
+本机使用 `LLM_CONFIG_SOURCE=server`：后端聊天调用 `D:\work\test7\agent\server.py` 中的 `deepseek_agent`，保留该智能体定义的模型、指令和工具，不再从根目录 `server.py` 读取。每次请求复制智能体及模型，网站历史由 PostgreSQL 管理，避免共享 SQLite 会话串入其他用户的请求。修改 `agent/server.py` 后需重启后端。
+
+启动配置校验会静态读取同文件中 `DeepSeek(...)` 的 `api_key`、`id`、`base_url` 字符串及 `use_thinking` 布尔值；实际运行则导入其中的智能体。若改用环境配置独立创建智能体，可设置 `LLM_CONFIG_SOURCE=env` 并填写 `LLM_*`。
 
 embedding 仍独立配置。只有聊天模型的服务不能自动承担 embedding。缺失密钥会返回明确配置错误，不会生成模拟回答。正式使用上传/RAG 会将资料文字发送给配置的 embedding 服务，命中片段发送给配置的聊天服务。
 
@@ -45,7 +47,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 ./.venv/Scripts/python.exe -m backend.init_db
 # 可选：创建管理员，密码交互输入；已有同名账号不会被自动提权
 ./.venv/Scripts/python.exe -m backend.init_db --admin admin
-# 启动正式后端（根目录 server.py / agno_agent.py 保留为独立示例）
+# 启动网站后端（智能体定义在 agent/server.py）
 ./.venv/Scripts/python.exe -m uvicorn backend.server:app --factory --host 127.0.0.1 --port 7777
 ```
 
@@ -108,57 +110,9 @@ Agno 流式测试使用真实框架和受控 HTTP 上游，不消耗模型额度
 
 ## 原有 PDF 和 Word 转 Markdown 工具
 
-使用 Python 3.10 或以上版本，将 `.pdf`、`.docx` 文件转换为 UTF-8 编码的 `.md` 文件。所有转换在本地完成，无需上传文件。
-
-## 安装
-
-在此文件夹打开 PowerShell，执行：
+转换脚本、依赖清单、测试、使用说明与转换示例已集中到 `agent/tools/`。详见 [转换工具说明](agent/tools/README.md)。
 
 ```powershell
-python -m pip install -r requirements.txt
+python -m pip install -r agent/tools/requirements.txt
+python agent/tools/convert_to_md.py ziliao -r -o markdown_output
 ```
-
-## 转换示例
-
-转换提供的两个示例：
-
-```powershell
-python convert_to_md.py "ziliao/01_Word制度与培训/01_公司章程与治理规则.docx" "ziliao/02_PDF合作案例/01_离散制造工厂设备联网.pdf" -o examples_md
-```
-
-批量转换文件夹，包括所有子文件夹：
-
-```powershell
-python convert_to_md.py ziliao -r -o markdown_output
-```
-
-仅处理文件夹第一层时省略 `-r`。允许覆盖已有结果时添加 `--overwrite`。更多帮助：
-
-```powershell
-python convert_to_md.py --help
-```
-
-## 输出规则
-
-- 默认输出到当前工作目录下的 `markdown_output`；使用 `-o` 指定其他位置。
-- 文件名保留原扩展名，例如 `公司章程.docx.md`、`合作案例.pdf.md`，避免同名 Word 和 PDF 相互覆盖。
-- 批量处理保留相对于输入文件夹的子目录结构；输入多个文件夹产生同名输出时报告冲突，不覆盖。
-- 默认跳过已存在的结果；源文件不修改。单个文件失败后继续处理其他文件。
-- 退出码：全部成功或跳过为 `0`，有失败为 `1`，命令参数错误为 `2`。
-
-## 转换范围与限制
-
-- Word：按原顺序转换段落和表格，将标题样式转换为 Markdown 标题，将常见列表转换为 Markdown 列表。自动编号以 Markdown 列表重建，不保证保留 Word 的起始编号和编号重启规则。
-- PDF：提取文字和带边框、可被识别的表格，按垂直位置排列；以注释保留页码。未识别成表格的区域按文字输出。PDF 缺少语义结构，因此不自动猜测标题级别，多栏、复杂排版和无边框表格可能需要人工整理。
-- 表格第一行用作 Markdown 表头；合并单元格按普通网格展开，无法保持 Word/PDF 的合并布局。
-- 当前专注文字与表格，不导出图片，不保留字体、颜色、粗体、超链接目标、页眉页脚、批注或修订信息。
-- 扫描 PDF 需要先做 OCR。全扫描文件会报错，不生成看似成功的空结果；混合 PDF 会提示无文字的页并保留页码占位。
-- 不支持旧版二进制 `.doc`：先用 Word 另存为 `.docx` 再转换。不调用 Word，也不会执行文档里的指令或宏。
-
-## 验证
-
-```powershell
-python -m unittest -v test_convert_to_md
-```
-
-测试覆盖中文标题和路径、表格顺序及转义、已有文件保护、损坏文件后的批处理，以及提供的 PDF 示例。

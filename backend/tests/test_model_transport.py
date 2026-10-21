@@ -32,11 +32,18 @@ async def test_real_agno_stream_over_openai_transport(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_server_deepseek_config_sends_supported_roles(tmp_path):
+async def test_server_deepseek_config_sends_supported_roles(tmp_path, monkeypatch):
     from backend.agent.server import create_agent
     source = tmp_path / 'server.py'
     source.write_text('model=DeepSeek(id="deepseek-v4-flash", api_key="test", use_thinking=False)', encoding='utf-8')
     settings = Settings(_env_file=None, jwt_secret='x' * 32, llm_config_source='server', llm_server_config_path=source)
+    import sys
+    from types import ModuleType
+    from agno.models.deepseek import DeepSeek
+    module = ModuleType('agent.server')
+    module.deepseek_agent = Agent(model=DeepSeek(id='deepseek-v4-flash', api_key='test', use_thinking=False),
+                                 instructions='test instruction', telemetry=False)
+    monkeypatch.setitem(sys.modules, 'agent.server', module)
     captured = []
     def handle(request):
         body = json.loads(request.content)

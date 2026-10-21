@@ -19,3 +19,9 @@
 管理员没有预置公开密码。使用 `python -m backend.init_db --admin admin` 交互设置密码。普通账号通过前端注册。
 
 后台启动使用 127.0.0.1:7777；日志在 backend/data/server.*.log，进程号在 backend/data/server.pid。修改环境配置后需重启该服务。
+
+## 智能体调用路径调整
+
+按用户指定，网站后端现调用 `D:\work\test7\agent\server.py` 导出的 `deepseek_agent`，保留其中模型、指令及工具。按请求复制 Agent 和模型；网站的会话历史统一由 PostgreSQL 提供，复制的智能体不使用共享 SQLite 历史。
+
+该调整后完整回归为 26 项 Python、5 项 JavaScript 测试通过，包含真实 PostgreSQL 与 HTTP 重启验收。后端已重启，通过实际 HTTP/SSE 调用目标智能体，返回“连接成功”，用户和 AI 两条消息保存成功，测试账号和会话已清理。嵌入服务仍独立配置。

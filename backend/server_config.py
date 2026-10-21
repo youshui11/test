@@ -1,4 +1,4 @@
-"""静态读取根目录 DeepSeek 声明，不执行示例服务器或创建 SQLite。"""
+"""静态读取 agent/server.py 模型元信息；实际 Agent 由调用适配器加载。"""
 import ast
 from pathlib import Path
 
@@ -7,7 +7,7 @@ def read_server_model_config(path: Path) -> dict:
     try:
         tree = ast.parse(path.read_text(encoding='utf-8-sig'))
     except (OSError, SyntaxError):
-        raise ValueError('无法读取根目录 server.py 的模型配置') from None
+        raise ValueError('无法读取指定 server.py 的模型配置') from None
     calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)
              and ((isinstance(node.func, ast.Name) and node.func.id == 'DeepSeek')
                   or (isinstance(node.func, ast.Attribute) and node.func.attr == 'DeepSeek'))]
@@ -24,7 +24,7 @@ def read_server_model_config(path: Path) -> dict:
         if name in values and (not isinstance(values[name], str) or not values[name].strip()):
             raise ValueError('server.py 的模型配置字符串不能为空')
     if not values.get('api_key') or '你的_' in values['api_key']:
-        raise ValueError('请在根目录 server.py 的 DeepSeek 声明中配置 api_key 字符串')
+        raise ValueError('请在 agent/server.py 的 DeepSeek 声明中配置 api_key 字符串')
     thinking = values.get('use_thinking')
     if thinking is not None and not isinstance(thinking, bool):
         raise ValueError('server.py 的 use_thinking 必须为 True、False 或 None')

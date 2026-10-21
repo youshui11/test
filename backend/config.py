@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     llm_base_url: str = 'https://api.openai.com/v1'
     llm_model: str = 'gpt-4o'
     llm_config_source: Literal['env', 'server'] = 'env'
-    llm_server_config_path: Path = ROOT / 'server.py'
+    llm_server_config_path: Path = ROOT / 'agent' / 'server.py'
     llm_provider: Literal['openai', 'deepseek'] = 'openai'
     llm_use_thinking: bool | None = None
     embedding_api_key: SecretStr = SecretStr('')

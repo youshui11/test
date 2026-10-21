@@ -8,6 +8,7 @@ from pathlib import Path
 
 
 SUPPORTED = {'.docx', '.pdf'}
+INSTALL_COMMAND = 'python -m pip install -r "{}"'.format(Path(__file__).with_name('requirements.txt'))
 
 
 def escape(text):
@@ -189,7 +190,7 @@ def main(argv=None):
                 print(f'[提示] {source.name}：{warning}', file=sys.stderr)
         except ModuleNotFoundError as exc:
             failed += 1
-            print(f'[失败] 缺少依赖 {exc.name}；请运行 python -m pip install -r requirements.txt',
+            print(f'[失败] 缺少依赖 {exc.name}；请运行 {INSTALL_COMMAND}',
                   file=sys.stderr)
         except Exception as exc:
             failed += 1
@@ -205,5 +206,5 @@ if __name__ == '__main__':
     try:
         sys.exit(main())
     except ModuleNotFoundError as exc:
-        print(f'缺少依赖：{exc.name}。请运行 python -m pip install -r requirements.txt', file=sys.stderr)
+        print(f'缺少依赖：{exc.name}。请运行 {INSTALL_COMMAND}', file=sys.stderr)
         sys.exit(1)

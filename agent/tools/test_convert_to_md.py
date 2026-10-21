@@ -44,7 +44,7 @@ class ConversionTests(unittest.TestCase):
             self.assertEqual(target.read_text(encoding='utf-8'), '保留已有结果')
 
     def test_pdf_example_has_chinese_text(self):
-        source = SCRIPT.parent / 'ziliao/02_PDF合作案例/01_离散制造工厂设备联网.pdf'
+        source = SCRIPT.parents[2] / 'ziliao/02_PDF合作案例/01_离散制造工厂设备联网.pdf'
         if not source.exists():
             self.skipTest('example file unavailable')
         with tempfile.TemporaryDirectory(dir=SCRIPT.parent) as temp:
