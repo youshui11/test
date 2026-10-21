@@ -9,10 +9,11 @@ class UploadBodyLimit:
         self.settings = settings
 
     async def __call__(self, scope, receive, send):
-        if scope['type'] != 'http' or scope.get('path') != '/api/upload' or scope.get('method') != 'POST':
+        if scope['type'] != 'http' or scope.get('path') not in {'/api/upload', '/api/ingest'} or scope.get('method') != 'POST':
             return await self.app(scope, receive, send)
         # multipart 字段头和 boundary 留出 256 KiB，文件本身仍由路由严格限制。
-        limit = self.settings.max_upload_bytes + 256 * 1024
+        limit = (self.settings.max_ingest_bytes if scope.get('path') == '/api/ingest'
+                 else self.settings.max_upload_bytes) + 256 * 1024
         headers = dict(scope.get('headers', []))
         try:
             length = int(headers.get(b'content-length', b'0'))

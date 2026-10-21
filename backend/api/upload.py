@@ -62,7 +62,7 @@ async def upload(request: Request, file: UploadFile = File(...), user: User = De
         db.add(record)
         await db.flush()
         db.add_all([Knowledge(file_id=file_id, user_id=user_id, file_name=name, chunk_text=chunk,
-                              embedding=vector, meta={'chunk': index})
+                              embedding=vector, chunk_index=index, meta={'chunk': index})
                     for index, (chunk, vector) in enumerate(zip(chunks, vectors))])
         await db.commit()
         complete = True

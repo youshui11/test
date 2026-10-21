@@ -15,7 +15,7 @@ def client(tmp_path):
     app = create_app(Settings(database_url=f'sqlite+aiosqlite:///{tmp_path / "test.db"}',
                               llm_config_source='env', llm_api_key='',
                               jwt_secret='test-secret-with-at-least-32-characters',
-                              upload_dir=tmp_path / 'uploads'))
+                              upload_dir=tmp_path / 'uploads', ingest_temp_dir=tmp_path / 'ingest'))
     import asyncio
     from backend.database import Base
     async def setup():

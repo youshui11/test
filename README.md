@@ -47,6 +47,8 @@ CREATE EXTENSION IF NOT EXISTS vector;
 ```powershell
 # 建表；重复运行保留已有数据，不重置账号
 ./.venv/Scripts/python.exe -m backend.init_db
+# 已有数据库启用新导入模块前执行；可重复运行，保留已有资料
+./.venv/Scripts/python.exe -m backend.migrate_ingest
 # 可选：创建管理员，密码交互输入；已有同名账号不会被自动提权
 ./.venv/Scripts/python.exe -m backend.init_db --admin admin
 # 启动网站后端（智能体定义在 agent/server.py）
@@ -90,6 +92,50 @@ data: {"msgId":"m_...","role":"ai","content":"完整回答","files":[],"time":".
 
 初始化使用 `create_all` 建立初始表及 HNSW 余弦索引，需要 pgvector >= 0.5。现有表后续结构变更需明确数据库迁移；重复初始化不是迁移工具。生产部署前更换文档中的开发数据库密码，配置 HTTPS，并按访问量配置反向代理限流；代理需关闭 SSE 缓冲。数据库应与 `backend/data/uploads` 一起备份。
 
+## 导入资料
+
+聊天页面“导入资料”使用独立知识库流程；“添加附件”维持原来 20 MB 的消息附件行为。导入支持 PDF、DOCX、XLSX、XLS、PPTX、UTF-8 TXT/MD，最大 50 MB。上传后立即返回任务 ID，页面每 2 秒查询状态；成功提示片段数，失败提示原因。切换页面停止轮询，服务器仍继续处理已接收任务。
+
+```powershell
+./.venv/Scripts/python.exe -m pip install -r backend/requirements.txt
+./.venv/Scripts/python.exe -m backend.migrate_ingest
+```
+
+在 `backend/.env` 配置 `EMBEDDING_API_KEY`（优先）或 `OPENAI_API_KEY`（兼容回退），模型默认 `text-embedding-3-small`，向量固定 1536 维。导入、附件入库和聊天检索共享 embedding 配置。每批 20 个片段；429 最多重试 3 次，间隔 1、2、4 秒，不叠加 SDK 自动重试。
+
+若提示“向量服务密钥无效（401）”，需更换 `EMBEDDING_API_KEY`；使用 `OPENAI_API_KEY` 时必须将前者清空，避免仍优先使用无效值。修改 `.env` 后重启后端再导入。
+
+转换器在受控子进程运行：PDF 优先 PyMuPDF4LLM，DOCX 保留段落/表格，Excel 每个工作表生成标题和表格，PPTX 按页提取文字/表格和图片占位。扫描 PDF 不自动 OCR；空文件、损坏格式和无法提取正文的文件会失败。单份转换文本最多 200 万字符、默认最多 2000 片段；Office 解压总量最多 100 MB，超过时请拆分。
+
+切分按 Markdown 标题路径、段落和句子组织，目标 200–600 字，最多 800 字；章节末尾可较短。同节相邻片段重叠 1–2 个短句，不跨标题混入其他章节；超长无标点内容按上限拆分。metadata 含 source_file、chunk_index、heading_path、char_count。围栏代码不会误识别为标题，长表格/代码尽量按行拆分。
+
+临时文件仅存于 `ziliao/md/<UUID>/`，转换完成或任务失败即清理；知识库保留文本、向量及来源元信息，不提供导入原件下载。启动时将上次中断的 processing 任务标记 failed；上传阶段崩溃遗留目录只有在 UUID 和本功能所有权标记均匹配时才会回收，不删除其他资料。
+
+当前任务管理按单进程设计，启动时不要传 `--workers`。默认同时处理 2 份资料；配置 `INGEST_CONCURRENCY`、`CONVERTER_TIMEOUT_SECONDS`、`INGEST_TIMEOUT_SECONDS` 可调整。转换和 embedding 期间不占数据库事务；全部片段一次事务入库，失败不留下部分记录。
+
+接口（均需 Bearer token，仅任务创建者可查询）：
+
+| 方法 | 路径 | 返回 |
+| --- | --- | --- |
+| POST | `/api/ingest`，FormData 字段 `file` | 202 `{fileId,fileName,chunkCount:0,status:"processing"}` |
+| GET | `/api/ingest/status/{fileId}` | `{fileId,status,chunkCount,error}`，状态 processing/completed/failed |
+
+PowerShell 使用 `curl.exe`，避免 `curl` 别名差异：
+
+```powershell
+$env:INGEST_TOKEN='<登录接口返回的 token>'
+curl.exe -X POST http://127.0.0.1:7777/api/ingest -H "Authorization: Bearer $env:INGEST_TOKEN" -F "file=@D:/资料/说明.pdf"
+curl.exe http://127.0.0.1:7777/api/ingest/status/<fileId> -H "Authorization: Bearer $env:INGEST_TOKEN"
+# 单独测试各转换器（stdout 为 Markdown）
+./.venv/Scripts/python.exe -m backend.tools.pdf_to_md "D:/资料/说明.pdf"
+./.venv/Scripts/python.exe -m backend.tools.docx_to_md "D:/资料/说明.docx"
+./.venv/Scripts/python.exe -m backend.tools.excel_to_md "D:/资料/说明.xlsx"
+./.venv/Scripts/python.exe -m backend.tools.pptx_to_md "D:/资料/说明.pptx"
+./.venv/Scripts/python.exe -m backend.tools.txt_to_md "D:/资料/说明.md"
+```
+
+完整源代码已保存到项目。新增文件：`backend/api/ingest.py`、`backend/models/ingest.py`、`backend/migrate_ingest.py`、`backend/services/{converter,chunker,embedder,ingest}.py`、`backend/tools/*.py` 及对应测试。修改文件：`backend/server.py`、`config.py`、`middleware.py`、`models/{knowledge,__init__}.py`、`api/upload.py`、`services/rag.py`、依赖清单、`.env.example`、`.gitignore`、`api.js`、`app.js`、`style.css`、本 README。`agent/server.py` 不修改。
+
 ## 后端验证
 
 ```powershell
@@ -97,9 +143,11 @@ data: {"msgId":"m_...","role":"ai","content":"完整回答","files":[],"time":".
 ./.venv/Scripts/python.exe -m pytest -q
 node --test backend/tests/test_sse.cjs
 node --test backend/tests/test_chat_ui.cjs
+node --test backend/tests/test_ingest_ui.cjs
 # 对 .env 中的 PostgreSQL 运行集成测试（也可指定专用测试库 URL）
 $env:TEST_DATABASE_URL='configured'
 ./.venv/Scripts/python.exe -m pytest backend/tests/test_postgres.py -q
+./.venv/Scripts/python.exe -m pytest backend/tests/test_ingest_postgres.py -q
 ./.venv/Scripts/python.exe -m backend.check_db
 # 真实启动、HTTP 和重启持久化验收（仅创建并清理随机测试账号）
 $env:RUN_LIVE_SMOKE='1'

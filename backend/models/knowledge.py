@@ -26,6 +26,7 @@ class Knowledge(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), index=True)
     file_name: Mapped[str] = mapped_column(String(200))
     chunk_text: Mapped[str] = mapped_column(Text)
+    chunk_index: Mapped[int | None] = mapped_column(nullable=True)
     embedding: Mapped[list] = mapped_column(JSON().with_variant(Vector(1536), 'postgresql'))
     meta: Mapped[dict] = mapped_column('metadata', JSON().with_variant(JSONB(), 'postgresql'), default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

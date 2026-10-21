@@ -8,9 +8,11 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from backend.config import Settings, ROOT
 from backend.database import connect_database
-from backend.api import auth, chat, upload, admin
+from backend.api import auth, chat, upload, admin, ingest
 from backend.services import rag, agent
 from backend.middleware import UploadBodyLimit
+from backend.services.converter import convert_file
+from backend.services.ingest import IngestManager
 
 
 def create_app(settings: Settings | None = None):
@@ -20,8 +22,13 @@ def create_app(settings: Settings | None = None):
     @asynccontextmanager
     async def lifespan(application):
         settings.upload_dir.mkdir(parents=True, exist_ok=True)
-        yield
-        await engine.dispose()
+        settings.ingest_temp_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            await application.state.ingest.recover()
+            yield
+        finally:
+            await application.state.ingest.close()
+            await engine.dispose()
 
     application = FastAPI(title='资料查询助手 API', version='1.0.0', lifespan=lifespan)
     application.state.settings = settings
@@ -30,10 +37,12 @@ def create_app(settings: Settings | None = None):
     application.state.embed = partial(rag.embed, settings=settings)
     application.state.retrieve = lambda db, uid, q, ids: rag.retrieve(db, uid, q, ids, application.state.embed)
     application.state.answer = partial(agent.stream_answer, settings=settings)
+    application.state.convert = partial(convert_file, timeout=settings.converter_timeout_seconds)
+    application.state.ingest = IngestManager(application)
     application.add_middleware(UploadBodyLimit, settings=settings)
     application.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins,
                                 allow_methods=['GET', 'POST', 'DELETE'], allow_headers=['Authorization', 'Content-Type'])
-    for router in [auth.router, chat.router, upload.router, admin.router]:
+    for router in [auth.router, chat.router, upload.router, admin.router, ingest.router]:
         application.include_router(router)
 
     @application.exception_handler(SQLAlchemyError)

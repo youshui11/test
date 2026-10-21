@@ -16,12 +16,20 @@
     if (Array.isArray(detail)) detail = detail.map(item => item.msg).join('；');
     throw new Error(typeof detail === 'string' ? detail : '请求失败（' + response.status + '）');
   }
-  async function request(path, method = 'GET', body) {
-    const options = { method, headers: headers(body !== undefined && !(body instanceof FormData)) };
+  async function request(path, method = 'GET', body, signal) {
+    const options = { method, signal, headers: headers(body !== undefined && !(body instanceof FormData)) };
     if (body !== undefined) options.body = body instanceof FormData ? body : JSON.stringify(body);
     return (await check(await fetch(base + path, options))).json();
   }
   const sessionPath = id => '/api/sessions/' + encodeURIComponent(id) + '/messages';
+  function pause(ms, signal) {
+    return new Promise((resolve, reject) => {
+      if (signal?.aborted) { reject(new DOMException('已停止查询', 'AbortError')); return; }
+      const abort = () => { clearTimeout(timer); reject(new DOMException('已停止查询', 'AbortError')); };
+      const timer = setTimeout(() => { signal?.removeEventListener('abort', abort); resolve(); }, ms);
+      signal?.addEventListener('abort', abort, {once: true});
+    });
+  }
   window.api = {
     register: (username, password) => request('/api/users', 'POST', { username, password }),
     login: (username, password) => request('/api/login', 'POST', { username, password }),
@@ -30,6 +38,21 @@
     getMessages: id => request(sessionPath(id)),
     getAllSessions: () => request('/api/admin/sessions'),
     deleteSession: id => request('/api/admin/sessions/' + encodeURIComponent(id), 'DELETE'),
+    ingestFile(file, signal) {
+      if (file.size > 50 * 1024 * 1024) return Promise.reject(new Error('导入资料不能超过 50 MB'));
+      const data = new FormData(); data.append('file', file);
+      return request('/api/ingest', 'POST', data, signal);
+    },
+    getIngestStatus: (id, signal) => request('/api/ingest/status/' + encodeURIComponent(id), 'GET', undefined, signal),
+    async waitForIngest(id, signal) {
+      while (true) {
+        await pause(2000, signal);
+        const job = await window.api.getIngestStatus(id, signal);
+        if (job.status === 'completed') return job;
+        if (job.status === 'failed') throw new Error(job.error || '资料导入失败');
+        if (job.status !== 'processing') throw new Error('导入任务返回了未知状态');
+      }
+    },
     uploadFile(file) {
       if (file.size > 20 * 1024 * 1024) return Promise.reject(new Error('单个附件不能超过 20 MB'));
       const data = new FormData(); data.append('file', file);

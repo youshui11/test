@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = Field(default=480, ge=1, le=10080)
     upload_dir: Path = ROOT / 'backend/data/uploads'
     max_upload_bytes: int = Field(default=20 * 1024 * 1024, ge=1)
+    max_ingest_bytes: int = Field(default=50 * 1024 * 1024, ge=1)
+    ingest_temp_dir: Path = ROOT / 'ziliao' / 'md'
+    ingest_concurrency: int = Field(default=2, ge=1, le=8)
+    ingest_timeout_seconds: float = Field(default=600, gt=0)
+    converter_timeout_seconds: float = Field(default=120, gt=0)
     cors_origins: list[str] = ['http://localhost:7777', 'http://127.0.0.1:7777', 'http://localhost:5173']
     llm_api_key: SecretStr = SecretStr('')
     llm_base_url: str = 'https://api.openai.com/v1'
@@ -23,6 +28,7 @@ class Settings(BaseSettings):
     llm_provider: Literal['openai', 'deepseek'] = 'openai'
     llm_use_thinking: bool | None = None
     embedding_api_key: SecretStr = SecretStr('')
+    openai_api_key: SecretStr = SecretStr('')
     embedding_base_url: str = 'https://api.openai.com/v1'
     embedding_model: str = 'text-embedding-3-small'
     model_timeout_seconds: float = Field(default=120, gt=0, le=600)
@@ -30,6 +36,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode='after')
     def resolve_model_config(self):
+        if not self.embedding_api_key.get_secret_value():
+            self.embedding_api_key = self.openai_api_key
         if self.llm_config_source == 'server':
             from backend.server_config import read_server_model_config
             config = read_server_model_config(self.llm_server_config_path)

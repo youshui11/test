@@ -1,12 +1,11 @@
 """文本提取、embedding 和 pgvector 私有知识库检索。"""
-import math
 from pathlib import Path
 from fastapi import HTTPException
-from openai import AsyncOpenAI
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import select, bindparam, Float
 from sqlalchemy.orm import aliased
 from backend.models import Knowledge
+from backend.services.embedder import embed, validate_vectors
 
 
 def chunk_text(text: str) -> list[str]:
@@ -27,28 +26,6 @@ def extract_text(path: Path, suffix: str) -> str:
         return convert_docx(path)[0]
     from agent.tools.convert_to_md import convert_pdf
     return convert_pdf(path)[0]
-
-
-def validate_vectors(vectors, expected):
-    if len(vectors) != expected or any(len(v) != 1536 or
-            not all(math.isfinite(x) for x in v) or not any(v) for v in vectors):
-        raise ValueError('embedding 必须返回有效、非零的 1536 维向量')
-    return vectors
-
-
-async def embed(texts: list[str], settings) -> list[list[float]]:
-    key = settings.embedding_api_key.get_secret_value()
-    if not key:
-        raise HTTPException(503, '未配置 EMBEDDING_API_KEY')
-    async with AsyncOpenAI(api_key=key, base_url=settings.embedding_base_url,
-                           timeout=settings.model_timeout_seconds, max_retries=1) as client:
-        vectors = []
-        for start in range(0, len(texts), 32):
-            batch = texts[start:start + 32]
-            response = await client.embeddings.create(model=settings.embedding_model, input=batch,
-                                                        dimensions=1536)
-            vectors.extend(item.embedding for item in sorted(response.data, key=lambda item: item.index))
-        return validate_vectors(vectors, len(texts))
 
 
 async def retrieve(db, user_id: int, question: str, file_ids: list[str], embedder) -> list[dict]:

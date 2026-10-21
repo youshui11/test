@@ -14,15 +14,15 @@ from agno.vectordb.pgvector import PgVector, SearchType
 # =========================================================
 # API Keys：替换为你自己的真实 Key；不要提交到 Git
 # =========================================================
-DEEPSEEK_API_KEY = "你的_DeepSeek_API_Key"
-OPENAI_API_KEY = "你的_OpenAI_API_Key"
+DEEPSEEK_API_KEY = "sk-xxxxxxxxxxxxxxxxxxxxxx"
+OPENAI_API_KEY = "sk-xxxxxxxxxxxxxxxxxxxxxxx"
 
 # =========================================================
 # PostgreSQL + pgvector 配置
 # 数据库中需要已经存在由 Agno Knowledge 写入的向量数据
 # =========================================================
-PG_DB_URL = "postgresql+psycopg://用户名:密码@127.0.0.1:5432/数据库名"
-PG_TABLE_NAME = "cx_knowledge"
+PG_DB_URL = "postgresql+psycopg://wd_admin:wd_123@127.0.0.1:5432/wendang"
+PG_TABLE_NAME = "knowledge_base"
 
 # AgentOS / Team 会话数据
 db = SqliteDb(db_file="deepseek_agent.db")
