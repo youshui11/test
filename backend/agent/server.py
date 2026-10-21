@@ -14,8 +14,11 @@ from agno.vectordb.pgvector import PgVector, SearchType
 # =========================================================
 # API Keys：替换为你自己的真实 Key；不要提交到 Git
 # =========================================================
+
 DEEPSEEK_API_KEY = "sk-xxxxxxxxxxxxxxxxxxxxxx"
 OPENAI_API_KEY = "sk-xxxxxxxxxxxxxxxxxxxxxxx"
+
+
 
 # =========================================================
 # PostgreSQL + pgvector 配置
