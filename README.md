@@ -30,6 +30,8 @@ Copy-Item backend/.env.example backend/.env
 
 本机使用 `LLM_CONFIG_SOURCE=server`：后端聊天调用 `D:\work\test7\agent\server.py` 中的 `deepseek_agent`，保留该智能体定义的模型、指令和工具，不再从根目录 `server.py` 读取。每次请求复制智能体及模型，网站历史由 PostgreSQL 管理，避免共享 SQLite 会话串入其他用户的请求。修改 `agent/server.py` 后需重启后端。
 
+网站调用适配在 `backend/agent/adapter.py`，业务服务调用该适配层；对接不修改 `agent/server.py` 内的代码或配置。
+
 启动配置校验会静态读取同文件中 `DeepSeek(...)` 的 `api_key`、`id`、`base_url` 字符串及 `use_thinking` 布尔值；实际运行则导入其中的智能体。若改用环境配置独立创建智能体，可设置 `LLM_CONFIG_SOURCE=env` 并填写 `LLM_*`。
 
 embedding 仍独立配置。只有聊天模型的服务不能自动承担 embedding。缺失密钥会返回明确配置错误，不会生成模拟回答。正式使用上传/RAG 会将资料文字发送给配置的 embedding 服务，命中片段发送给配置的聊天服务。
