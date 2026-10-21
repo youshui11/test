@@ -1,0 +1,19 @@
+<!-- 用途：由 FastAPI 提供的 SPA 入口；CDN 提供 Vue 3 与 Vue Router 4，无需构建。 -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#4d6bfe">
+  <title>资料查询助手</title>
+  <link rel="stylesheet" href="./style.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/vue-router@4.5.0/dist/vue-router.global.prod.js"></script>
+  <script defer src="./api.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <div id="app"><div class="boot">正在打开资料查询助手…<br><small>首次加载需要联网获取 Vue CDN 依赖。</small></div></div>
+  <noscript>请启用 JavaScript 后使用此应用。</noscript>
+</body>
+</html>

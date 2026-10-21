@@ -1,0 +1,5 @@
+# 测试依赖；SQLite 仅用于快速 API 测试，不替代正式 PostgreSQL。
+-r requirements.txt
+pytest>=8,<10
+pytest-asyncio>=0.25,<2
+aiosqlite>=0.20,<1
