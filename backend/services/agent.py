@@ -6,6 +6,16 @@ from backend.agent.adapter import create_agent
 
 
 async def stream_answer(history, question: str, context: list[dict], settings):
+    if context and all(item.get('retrievalMode') == 'full' for item in context):
+        # 原文输出不经过模型改写，防止摘要、遗漏章节或生成长度限制。
+        yield f'以下为数据库中已入库的全部内容（共 {len(context)} 个片段，按原顺序）：\n\n'
+        previous = None
+        for item in context:
+            if item['fileId'] != previous:
+                yield f"## {item['fileName']}\n\n"
+                previous = item['fileId']
+            yield item['text'] + '\n\n'
+        return
     if not settings.llm_api_key.get_secret_value():
         raise HTTPException(503, '未配置 LLM_API_KEY')
     messages = [Message(role='assistant' if item['role'] == 'ai' else 'user', content=item['content'])
