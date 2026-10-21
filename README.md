@@ -116,5 +116,5 @@ Agno 流式测试使用真实框架和受控 HTTP 上游，不消耗模型额度
 
 ```powershell
 python -m pip install -r agent/tools/requirements.txt
-python agent/tools/convert_to_md.py ziliao -r -o markdown_output
+python agent/tools/convert_to_md.py ziliao -r
 ```

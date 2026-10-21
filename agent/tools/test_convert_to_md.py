@@ -2,6 +2,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import shutil
 from pathlib import Path
 
 from docx import Document
@@ -14,6 +15,44 @@ class ConversionTests(unittest.TestCase):
     def run_cli(self, *args):
         return subprocess.run([sys.executable, str(SCRIPT), *map(str, args)],
                               capture_output=True, text=True, encoding='utf-8')
+
+    def test_default_output_is_relative_to_script_project_not_working_directory(self):
+        with tempfile.TemporaryDirectory(dir=SCRIPT.parent) as temp:
+            root = Path(temp)
+            tool = root / 'agent/tools/convert_to_md.py'
+            tool.parent.mkdir(parents=True)
+            shutil.copyfile(SCRIPT, tool)
+            source = root / 'source.docx'
+            doc = Document()
+            doc.add_paragraph('自动保存正文')
+            doc.save(source)
+            elsewhere = root / 'elsewhere'
+            elsewhere.mkdir()
+            result = subprocess.run([sys.executable, str(tool), str(source)],
+                                    cwd=elsewhere, capture_output=True,
+                                    text=True, encoding='utf-8')
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            target = root / 'ziliao/md/source.docx.md'
+            self.assertTrue(target.is_file(), result.stdout)
+            self.assertIn('自动保存正文', target.read_text(encoding='utf-8'))
+            self.assertFalse((elsewhere / 'markdown_output').exists())
+
+    def test_python_callable_saves_and_protects_existing_file(self):
+        from agent.tools.convert_to_md import convert_file
+        with tempfile.TemporaryDirectory(dir=SCRIPT.parent) as temp:
+            root = Path(temp)
+            source = root / '中文.docx'
+            doc = Document()
+            doc.add_paragraph('通过 Python 调用')
+            doc.save(source)
+            result = convert_file(str(source), str(root / 'md'))
+            target = Path(result['output_path'])
+            self.assertIn('通过 Python 调用', target.read_text(encoding='utf-8'))
+            target.write_text('保留已有结果', encoding='utf-8')
+            self.assertTrue(convert_file(str(source), str(root / 'md'))['skipped'])
+            self.assertEqual(target.read_text(encoding='utf-8'), '保留已有结果')
+            convert_file(str(source), str(root / 'md'), overwrite=True)
+            self.assertIn('通过 Python 调用', target.read_text(encoding='utf-8'))
 
     def test_docx_order_table_escaping_and_no_overwrite(self):
         with tempfile.TemporaryDirectory(dir=SCRIPT.parent) as temp:

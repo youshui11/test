@@ -8,6 +8,7 @@ from pathlib import Path
 
 
 SUPPORTED = {'.docx', '.pdf'}
+DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parents[2] / 'ziliao' / 'md'
 INSTALL_COMMAND = 'python -m pip install -r "{}"'.format(Path(__file__).with_name('requirements.txt'))
 
 
@@ -139,10 +140,39 @@ def convert_pdf(source):
     return '\n\n'.join(pages) + '\n', warnings
 
 
+def convert_file(source: str, output_dir: str | None = None, overwrite: bool = False) -> dict:
+    """Convert a PDF or DOCX to Markdown and save it locally.
+
+    Args:
+        source: Path to the PDF or DOCX file.
+        output_dir: Output folder; defaults to the project's ziliao/md folder.
+        overwrite: Whether to replace an existing Markdown file.
+
+    Returns:
+        A dictionary containing output_path, skipped, and warnings.
+    """
+    source_path = Path(source).resolve()
+    if not source_path.is_file():
+        raise FileNotFoundError(f'文件不存在：{source_path}')
+    if source_path.suffix.lower() not in SUPPORTED:
+        raise ValueError('仅支持 .docx 和 .pdf 文件')
+    folder = Path(output_dir) if output_dir is not None else DEFAULT_OUTPUT_DIR
+    target = (folder / (source_path.name + '.md')).resolve()
+    if target.exists() and not overwrite:
+        return {'output_path': str(target), 'skipped': True, 'warnings': []}
+    converter = convert_docx if source_path.suffix.lower() == '.docx' else convert_pdf
+    markdown, warnings = converter(source_path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open('w' if overwrite else 'x', encoding='utf-8', newline='\n') as stream:
+        stream.write(markdown)
+    return {'output_path': str(target), 'skipped': False, 'warnings': warnings}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description='将 PDF / Word (.docx) 转换为 UTF-8 Markdown')
     parser.add_argument('inputs', nargs='+', type=Path, help='文件或文件夹，可传入多个')
-    parser.add_argument('-o', '--output', type=Path, default=Path('markdown_output'), help='输出文件夹')
+    parser.add_argument('-o', '--output', type=Path, default=DEFAULT_OUTPUT_DIR,
+                        help=f'输出文件夹（默认：{DEFAULT_OUTPUT_DIR}）')
     parser.add_argument('-r', '--recursive', action='store_true', help='递归处理子文件夹')
     parser.add_argument('--overwrite', action='store_true', help='允许覆盖已有 Markdown')
     args = parser.parse_args(argv)
@@ -178,15 +208,14 @@ def main(argv=None):
             skipped += 1
             continue
         try:
-            convert = convert_docx if source.suffix.lower() == '.docx' else convert_pdf
-            md, warnings = convert(source)
-            target.parent.mkdir(parents=True, exist_ok=True)
-            # Exclusive creation protects existing results, including concurrent runs.
-            with target.open('w' if args.overwrite else 'x', encoding='utf-8', newline='\n') as stream:
-                stream.write(md)
+            result = convert_file(str(source), str(target.parent), args.overwrite)
+            if result['skipped']:
+                print(f'[跳过] 已存在：{target}')
+                skipped += 1
+                continue
             completed += 1
             print(f'[完成] {source} -> {target}')
-            for warning in warnings:
+            for warning in result['warnings']:
                 print(f'[提示] {source.name}：{warning}', file=sys.stderr)
         except ModuleNotFoundError as exc:
             failed += 1
