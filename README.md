@@ -28,11 +28,13 @@ Copy-Item backend/.env.example backend/.env
 | `CORS_ORIGINS` | JSON 数组，列出允许访问 API 的前端来源 |
 | `MODEL_TIMEOUT_SECONDS` | 单轮检索和生成的总超时，默认 120 秒 |
 
-本机使用 `LLM_CONFIG_SOURCE=server`：后端聊天调用 `D:\work\test7\agent\server.py` 中的 `deepseek_agent`，保留该智能体定义的模型、指令和工具，不再从根目录 `server.py` 读取。每次请求复制智能体及模型，网站历史由 PostgreSQL 管理，避免共享 SQLite 会话串入其他用户的请求。修改 `agent/server.py` 后需重启后端。
+本机使用 `LLM_CONFIG_SOURCE=server`：后端聊天调用 `D:\work\test7\agent\server.py` 的导出对象，优先 `pd_team`，其次 `deepseek_agent`、`cx_agent`。保留源定义的模型、指令和工具；团队及成员每次请求复制并关闭共享 SQLite 历史，网站历史由 PostgreSQL 管理。修改 `agent/server.py` 后需重启后端。
 
 网站调用适配在 `backend/agent/adapter.py`，业务服务调用该适配层；对接不修改 `agent/server.py` 内的代码或配置。
 
-启动配置校验会静态读取同文件中 `DeepSeek(...)` 的 `api_key`、`id`、`base_url` 字符串及 `use_thinking` 布尔值；实际运行则导入其中的智能体。若改用环境配置独立创建智能体，可设置 `LLM_CONFIG_SOURCE=env` 并填写 `LLM_*`。
+网站后端会将 CX 的 `search_cx_knowledge` 工具替换为 `backend/services/cx_knowledge.py` 的异步检索实现，明确查询 `public.knowledge_base` 的 `chunk_text`、`file_name`、`embedding`，最多返回 3 条。每轮绑定当前登录用户和附件范围，复用网站 embedding 配置，不访问 Agno 默认的 `ai.knowledge_base`。团队与成员每次请求单独复制；未绑定登录身份时拒绝检索。此适配对网站后端生效，单独运行原 `agent/server.py` 仍使用源文件中的工具定义。
+
+启动配置校验会静态读取所选导出对象的 `DeepSeek(...)` 模型参数，支持字符串/布尔字面量及同文件顶层常量引用，允许团队和成员分别声明模型；实际运行则导入其中的团队或智能体。若改用环境配置独立创建智能体，可设置 `LLM_CONFIG_SOURCE=env` 并填写 `LLM_*`。
 
 embedding 仍独立配置。只有聊天模型的服务不能自动承担 embedding。缺失密钥会返回明确配置错误，不会生成模拟回答。正式使用上传/RAG 会将资料文字发送给配置的 embedding 服务，命中片段发送给配置的聊天服务。
 

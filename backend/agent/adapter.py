@@ -3,18 +3,32 @@ from copy import deepcopy
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
 from agno.models.deepseek import DeepSeek
+from agno.team import Team
+
+
+def isolated_copy(source):
+    updates = {'model': deepcopy(source.model), 'db': None, 'add_history_to_context': False,
+               'session_id': None, 'user_id': None, 'telemetry': False}
+    if isinstance(source, Team):
+        updates['members'] = [isolated_copy(member) for member in source.members]
+    if source.tools:
+        from backend.services.cx_knowledge import make_public_knowledge_tool
+        updates['tools'] = [make_public_knowledge_tool()
+                            if getattr(item, 'name', getattr(item, '__name__', None)) == 'search_cx_knowledge'
+                            else item for item in source.tools]
+    return source.deep_copy(update=updates)
 
 
 def create_agent(settings):
     if settings.llm_config_source == 'server':
-        from agent.server import deepseek_agent
+        from agent import server
         # 使用原定义的模型、指令和工具，每次请求复制运行状态。
         # 网站历史统一来自 PostgreSQL，避免共享 SQLite 会话跨用户复用。
-        return deepseek_agent.deep_copy(update={
-            'model': deepcopy(deepseek_agent.model),
-            'db': None, 'add_history_to_context': False,
-            'session_id': None, 'user_id': None, 'telemetry': False,
-        })
+        source = next((getattr(server, name) for name in ('pd_team', 'deepseek_agent', 'cx_agent')
+                       if isinstance(getattr(server, name, None), (Agent, Team))), None)
+        if source is None:
+            raise ValueError('agent/server.py 未导出 pd_team、deepseek_agent 或 cx_agent')
+        return isolated_copy(source)
     options = dict(id=settings.llm_model, api_key=settings.llm_api_key.get_secret_value(),
                    base_url=settings.llm_base_url, timeout=settings.model_timeout_seconds)
     model = (DeepSeek(**options, use_thinking=settings.llm_use_thinking)

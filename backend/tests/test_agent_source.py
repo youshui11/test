@@ -36,3 +36,25 @@ def test_default_server_configuration_path_points_to_agent_directory():
     from backend.config import ROOT
     settings = Settings(_env_file=None, jwt_secret='x' * 32)
     assert settings.llm_server_config_path == ROOT / 'agent' / 'server.py'
+
+
+def test_team_source_resolves_constants_and_isolates_members(tmp_path, monkeypatch):
+    from agno.team import Team
+    module = ModuleType('agent.server')
+    member = Agent(model=DeepSeek(id='member', api_key='test'), instructions=['member'])
+    module.cx_agent = member
+    module.pd_team = Team(model=DeepSeek(id='leader', api_key='test'), members=[member],
+                          db=SqliteDb(db_file=str(tmp_path / 'team.db')), add_history_to_context=True)
+    monkeypatch.setitem(sys.modules, 'agent.server', module)
+    source = tmp_path / 'server.py'
+    source.write_text('KEY="test"\ncx_agent=Agent(model=DeepSeek(id="member",api_key=KEY))\n'
+                      'pd_team=Team(model=DeepSeek(id="leader",api_key=KEY,use_thinking=False))', encoding='utf-8')
+    settings = Settings(_env_file=None, jwt_secret='x' * 32, llm_config_source='server', llm_server_config_path=source)
+    assert settings.llm_model == 'leader'
+    first, second = create_agent(settings), create_agent(settings)
+    assert isinstance(first, Team) and first.db is None and first.add_history_to_context is False
+    assert first.model is not module.pd_team.model
+    assert first.members[0] is not member and first.members[0] is not second.members[0]
+    assert first.members[0].model is not second.members[0].model
+    first.members[0].instructions.append('request')
+    assert member.instructions == second.members[0].instructions == ['member']

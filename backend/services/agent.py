@@ -25,7 +25,7 @@ async def stream_answer(history, question: str, context: list[dict], settings):
                                 json.dumps(context, ensure_ascii=False)))
     messages.append(Message(role='user', content=question))
     async for event in create_agent(settings).arun(messages, stream=True):
-        if getattr(event, 'event', '') in {'RunError', 'RunCancelled'}:
+        if getattr(event, 'event', '') in {'RunError', 'RunCancelled', 'TeamRunError', 'TeamRunCancelled'}:
             raise HTTPException(502, '模型服务返回错误，请稍后重试')
-        if getattr(event, 'event', '') == 'RunContent' and isinstance(event.content, str) and event.content:
+        if getattr(event, 'event', '') in {'RunContent', 'TeamRunContent'} and isinstance(event.content, str) and event.content:
             yield event.content

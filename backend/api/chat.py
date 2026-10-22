@@ -13,6 +13,7 @@ from backend.models.user import utcnow
 from backend.schemas import ChatInput
 from backend.services.auth import get_current_user
 from backend.services.chat import owned_session, owned_files, public_file, public_message, sse, generation_lock
+from backend.services.cx_knowledge import knowledge_scope
 
 router = APIRouter(prefix='/api/sessions', tags=['会话'])
 logger = logging.getLogger(__name__)
@@ -71,14 +72,15 @@ async def send_message(session_id: str, body: ChatInput, request: Request,
                         context = await request.app.state.retrieve(read_db, user_id, question, body.fileIds)
                     parts = []
                     length = 0
-                    async for delta in request.app.state.answer(history, question, context):
-                        if await request.is_disconnected():
-                            return
-                        length += len(delta)
-                        if length > 100000:
-                            raise HTTPException(502, '模型回复过长，请缩小问题范围')
-                        parts.append(delta)
-                        yield sse('delta', {'content': delta})
+                    with knowledge_scope(factory, user_id, body.fileIds, request.app.state.embed):
+                        async for delta in request.app.state.answer(history, question, context):
+                            if await request.is_disconnected():
+                                return
+                            length += len(delta)
+                            if length > 100000:
+                                raise HTTPException(502, '模型回复过长，请缩小问题范围')
+                            parts.append(delta)
+                            yield sse('delta', {'content': delta})
                     if not parts:
                         raise HTTPException(502, '模型未返回文字，请重试')
                     if await request.is_disconnected():

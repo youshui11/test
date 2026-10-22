@@ -8,7 +8,16 @@ def read_server_model_config(path: Path) -> dict:
         tree = ast.parse(path.read_text(encoding='utf-8-sig'))
     except (OSError, SyntaxError):
         raise ValueError('无法读取指定 server.py 的模型配置') from None
-    calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)
+    assignments = {target.id: node.value for node in tree.body if isinstance(node, ast.Assign)
+                   for target in node.targets if isinstance(target, ast.Name)}
+    # 团队及成员可以各自声明模型；以网站实际调用的导出对象为准。
+    root = next((assignments[name] for name in ('pd_team', 'deepseek_agent', 'cx_agent')
+                 if name in assignments), None)
+    model = next((keyword.value for keyword in root.keywords if keyword.arg == 'model'), None) \
+        if isinstance(root, ast.Call) else None
+    if isinstance(model, ast.Name):
+        model = assignments.get(model.id)
+    calls = [node for node in ast.walk(model if model is not None else tree) if isinstance(node, ast.Call)
              and ((isinstance(node.func, ast.Name) and node.func.id == 'DeepSeek')
                   or (isinstance(node.func, ast.Attribute) and node.func.attr == 'DeepSeek'))]
     if len(calls) != 1:
@@ -17,7 +26,10 @@ def read_server_model_config(path: Path) -> dict:
     for keyword in calls[0].keywords:
         if keyword.arg in {'api_key', 'id', 'base_url', 'use_thinking'}:
             try:
-                values[keyword.arg] = ast.literal_eval(keyword.value)
+                value = keyword.value
+                if isinstance(value, ast.Name):
+                    value = assignments.get(value.id, value)
+                values[keyword.arg] = ast.literal_eval(value)
             except (ValueError, TypeError, SyntaxError):
                 raise ValueError('server.py 的模型配置须使用字符串或布尔字面量') from None
     for name in ['api_key', 'id', 'base_url']:
