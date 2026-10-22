@@ -12,7 +12,7 @@ def isolated_copy(source):
     if isinstance(source, Team):
         updates['members'] = [isolated_copy(member) for member in source.members]
     if source.tools:
-        from backend.services.cx_knowledge import make_public_knowledge_tool
+        from agent.tools.cx_knowledge import make_public_knowledge_tool
         updates['tools'] = [make_public_knowledge_tool()
                             if getattr(item, 'name', getattr(item, '__name__', None)) == 'search_cx_knowledge'
                             else item for item in source.tools]

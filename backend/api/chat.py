@@ -13,7 +13,7 @@ from backend.models.user import utcnow
 from backend.schemas import ChatInput
 from backend.services.auth import get_current_user
 from backend.services.chat import owned_session, owned_files, public_file, public_message, sse, generation_lock
-from backend.services.cx_knowledge import knowledge_scope
+from agent.tools.cx_knowledge import knowledge_scope
 
 router = APIRouter(prefix='/api/sessions', tags=['会话'])
 logger = logging.getLogger(__name__)

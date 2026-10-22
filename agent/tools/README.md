@@ -7,7 +7,7 @@
 在项目根目录 D:/work/test7 打开 PowerShell，执行：
 
 ```powershell
-python -m pip install -r agent/tools/requirements.txt
+python -m pip install -r backend/requirements.txt
 ```
 
 ## 转换示例
@@ -15,7 +15,7 @@ python -m pip install -r agent/tools/requirements.txt
 转换提供的两个示例：
 
 ```powershell
-python agent/tools/convert_to_md.py "ziliao/01_Word制度与培训/01_公司章程与治理规则.docx" "ziliao/02_PDF合作案例/01_离散制造工厂设备联网.pdf" -o agent/tools/examples_md
+python agent/tools/convert_to_md.py "ziliao/01_Word制度与培训/01_公司章程与治理规则.docx" "ziliao/02_PDF合作案例/01_离散制造工厂设备联网.pdf" -o ziliao/md
 ```
 
 批量转换文件夹，包括所有子文件夹：
@@ -65,7 +65,7 @@ print(result["output_path"])
 ## 验证
 
 ```powershell
-python -m unittest discover -s agent/tools -p test_convert_to_md.py -v
+python -m unittest discover -s backend/tests -p test_convert_to_md.py -v
 ```
 
 测试覆盖中文标题和路径、表格顺序及转义、已有文件保护、损坏文件后的批处理，以及提供的 PDF 示例。

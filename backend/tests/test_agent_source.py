@@ -5,7 +5,7 @@ from agno.agent import Agent
 from agno.db.sqlite import SqliteDb
 from agno.models.deepseek import DeepSeek
 from backend.config import Settings
-from backend.agent.adapter import create_agent
+from backend.agent_adapter import create_agent
 
 
 def test_agent_source_preserves_definition_but_isolates_request_state(tmp_path, monkeypatch):

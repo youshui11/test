@@ -8,7 +8,7 @@ import pytest
 from agno.agent import Agent
 from agno.models.deepseek import DeepSeek
 from agno.team import Team
-from backend.agent.adapter import create_agent
+from backend.agent_adapter import create_agent
 from backend.config import Settings
 from uuid import uuid4
 from sqlalchemy import text
@@ -19,7 +19,7 @@ from backend.models import User, Upload, Knowledge
 
 @pytest.mark.asyncio
 async def test_cx_tool_reads_private_public_table_and_replaces_only_search(monkeypatch):
-    from backend.services.cx_knowledge import knowledge_scope
+    from agent.tools.cx_knowledge import knowledge_scope
     url = os.getenv('TEST_DATABASE_URL')
     if not url:
         pytest.skip('需要 TEST_DATABASE_URL 运行真实 pgvector 查询')
@@ -84,7 +84,7 @@ async def test_cx_tool_reads_private_public_table_and_replaces_only_search(monke
 
 @pytest.mark.asyncio
 async def test_cx_tool_fails_closed_without_authenticated_scope():
-    from backend.services.cx_knowledge import make_public_knowledge_tool
+    from agent.tools.cx_knowledge import make_public_knowledge_tool
     tool = make_public_knowledge_tool()
     with pytest.raises(ValueError, match='身份'):
         await tool.entrypoint('资料')

@@ -8,7 +8,7 @@ from pathlib import Path
 from docx import Document
 
 
-SCRIPT = Path(__file__).with_name('convert_to_md.py')
+SCRIPT = Path(__file__).resolve().parents[2] / 'agent/tools/convert_to_md.py'
 
 
 class ConversionTests(unittest.TestCase):

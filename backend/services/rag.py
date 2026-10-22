@@ -39,11 +39,34 @@ async def retrieve(db, user_id: int, question: str, file_ids: list[str], embedde
         r'\s*(?:请)?(?:帮我)?(?:输出|列出|显示|提供|查看|读取)?\s*'
         r'(?:[《「“\"\']?(?P<name>.+\.(?:pdf|docx|xlsx|xls|pptx|txt|md))[》」”\"\']?\s*(?:中|的)?)?'
         r'(?:全部内容|完整内容|全文)[。！!？?\s]*', question, re.IGNORECASE)
-    if full_request:
-        name = full_request['name']
+    # “查原句出处，并输出该文档全文”先做原文匹配，再按稳定 file_id 展开。
+    quotes = re.findall(r'「([^」]+)」|“([^”]+)”|"([^"\n]+)"|『([^』]+)』', question)
+    quote = max((part.strip() for group in quotes for part in group if part.strip()), key=len, default='')
+    source_full = bool(quote and re.search(r'出自|来源|出处|哪篇|哪份|哪个文档', question)
+                       and re.search(r'(?:输出|返回|提供|显示|查看|读取).*(?:全文|全部内容|完整内容)', question))
+    if source_full:
+        # PDF 提取会在同一句中插入换行/空格；匹配时忽略排版空白，输出仍保留原文。
+        whitespace = (' ', '\t', '\r', '\n', '\u3000', '\u00a0', '\u200b')
+        normalized_column = Knowledge.chunk_text
+        normalized_quote = quote
+        for character in whitespace:
+            normalized_column = func.replace(normalized_column, character, '')
+            normalized_quote = normalized_quote.replace(character, '')
+        if not normalized_quote:
+            raise HTTPException(422, '请提供有效的资料原句')
+        matches = (await db.execute(select(Knowledge.file_id, Knowledge.file_name).where(
+            *filters, normalized_column.contains(normalized_quote, autoescape=True)).distinct().limit(6))).all()
+        if not matches:
+            raise HTTPException(404, '未找到与引文完全匹配的当前账号资料，请核对原句或指定文件名')
+        if len(matches) > 1:
+            names = '、'.join(dict.fromkeys(row.file_name for row in matches))
+            raise HTTPException(409, f'该引文匹配多份资料：{names}。请指定文件名或附件后读取全文')
+        filters.append(Knowledge.file_id == matches[0].file_id)
+    if full_request or source_full:
+        name = full_request['name'] if full_request else None
         if name:
             filters.append(Knowledge.file_name == name)
-        elif not file_ids:
+        elif not file_ids and not source_full:
             raise HTTPException(422, '请指定资料文件名，例如：文件.pdf中全部内容')
         count, total, files = (await db.execute(select(
             func.count(Knowledge.id), func.sum(func.length(Knowledge.chunk_text)),

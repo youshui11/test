@@ -20,7 +20,7 @@
 
 ## 转换模块
 
-新增 `backend/services/converter.py` 和 `backend/tools/` 下各格式转换器，每个转换脚本提供 `main`，可以独立运行。通过参数列表启动受控 Python 子进程，不拼接 shell 命令；转换失败统一为 ConvertError，设置超时并终止超时子进程。
+新增 `backend/services/converter.py` 和 `agent/tools/` 下各格式转换器，每个转换脚本提供 `main`，可以独立运行。通过参数列表启动受控 Python 子进程，不拼接 shell 命令；转换失败统一为 ConvertError，设置超时并终止超时子进程。
 
 PDF 优先 pymupdf4llm，尽量保留标题、表格与图片占位；DOCX 复用已有 python-docx 段落/表格解析；Excel 使用 openpyxl 处理 xlsx、xlrd 处理 xls，每个 sheet 生成标题和 Markdown 表格；PPTX 使用 python-pptx 提取每页文本和表格；TXT/MD 读取文字。空文本、损坏文档和需要 OCR 的扫描件给出明确错误。Office 压缩文件增加解压体积检查。
 

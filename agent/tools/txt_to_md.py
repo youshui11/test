@@ -1,5 +1,5 @@
-"""UTF-8 TXT/Markdown 透传；python -m backend.tools.txt_to_md 文件路径。"""
-from backend.tools.common import run_cli
+"""UTF-8 TXT/Markdown 透传；python -m agent.tools.txt_to_md 文件路径。"""
+from agent.tools.common import run_cli
 
 
 def convert(path):

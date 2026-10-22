@@ -19,7 +19,7 @@ async def convert_file(path: Path, timeout: float = 120) -> str:
     if module is None:
         raise ConvertError('不支持的文件格式')
     environment = dict(os.environ, PYTHONIOENCODING='utf-8')
-    process = await asyncio.create_subprocess_exec(sys.executable, '-m', 'backend.tools.' + module,
+    process = await asyncio.create_subprocess_exec(sys.executable, '-m', 'agent.tools.' + module,
         str(path.resolve()), cwd=ROOT, env=environment, stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.DEVNULL)
     try:

@@ -2,7 +2,7 @@
 import json
 from fastapi import HTTPException
 from agno.models.message import Message
-from backend.agent.adapter import create_agent
+from backend.agent_adapter import create_agent
 
 
 async def stream_answer(history, question: str, context: list[dict], settings):

@@ -30,9 +30,9 @@ Copy-Item backend/.env.example backend/.env
 
 本机使用 `LLM_CONFIG_SOURCE=server`：后端聊天调用 `D:\work\test7\agent\server.py` 的导出对象，优先 `pd_team`，其次 `deepseek_agent`、`cx_agent`。保留源定义的模型、指令和工具；团队及成员每次请求复制并关闭共享 SQLite 历史，网站历史由 PostgreSQL 管理。修改 `agent/server.py` 后需重启后端。
 
-网站调用适配在 `backend/agent/adapter.py`，业务服务调用该适配层；对接不修改 `agent/server.py` 内的代码或配置。
+网站调用适配在 `backend/agent_adapter.py`，Agent 定义在 `agent/server.py`，检索和转换工具统一位于 `agent/tools/`。源 Agent 保留模型、团队和指令定义，检索工具从工具目录加载。
 
-网站后端会将 CX 的 `search_cx_knowledge` 工具替换为 `backend/services/cx_knowledge.py` 的异步检索实现，明确查询 `public.knowledge_base` 的 `chunk_text`、`file_name`、`embedding`，最多返回 3 条。每轮绑定当前登录用户和附件范围，复用网站 embedding 配置，不访问 Agno 默认的 `ai.knowledge_base`。团队与成员每次请求单独复制；未绑定登录身份时拒绝检索。此适配对网站后端生效，单独运行原 `agent/server.py` 仍使用源文件中的工具定义。
+CX 的 `search_cx_knowledge` 工具使用 `agent/tools/cx_knowledge.py` 的异步检索实现，明确查询 `public.knowledge_base` 的 `chunk_text`、`file_name`、`embedding`，最多返回 3 条。每轮绑定当前登录用户和附件范围，复用网站 embedding 配置，不访问 Agno 默认的 `ai.knowledge_base`。团队与成员每次请求单独复制；未绑定登录身份时拒绝检索。请使用网站后端入口启动，以提供认证和数据库调用上下文。
 
 启动配置校验会静态读取所选导出对象的 `DeepSeek(...)` 模型参数，支持字符串/布尔字面量及同文件顶层常量引用，允许团队和成员分别声明模型；实际运行则导入其中的团队或智能体。若改用环境配置独立创建智能体，可设置 `LLM_CONFIG_SOURCE=env` 并填写 `LLM_*`。
 
@@ -78,6 +78,8 @@ CREATE EXTENSION IF NOT EXISTS vector;
 支持 PDF、DOCX、UTF-8 TXT/Markdown；单文件 20 MB、最多 2000 个 500 字片段。扫描 PDF 需先 OCR；空文件、损坏文件和无文字资料拒绝入库。按余弦距离取当前用户私有知识库前 5 块，指定 `fileIds` 时只检索这些文件。资料独立于会话，删除会话不会删除知识库文件。
 
 全文查看：输入 `09_外观检测相机与追溯接入.pdf中全部内容`，或为消息添加附件后输入 `请输出全部内容`。后端按文件的 `chunk_index` 顺序返回所有已入库片段，不受普通问答的前 5 块限制，也不经过模型摘要。正文保持入库片段内容，可能包含切分时的重叠文字；不代表恢复原文件版式。同名资料存在多份时需通过附件指定；全文过长时明确提示按章节分段查询，不会静默返回部分内容。
+
+根据原句查来源并查看全文：例如 `查询「空压站仅有总管指针表，支路异常时无法区分设备耗气变化和压力波动。」出自哪篇文档，并输出该文档全文`。系统在当前用户及所选附件范围内匹配引文（忽略排版空白），唯一命中后按文件 ID 读取全部片段并标明文件名；多份资料命中时提示选择，未找到时明确说明，不用相似片段冒充原句出处。
 
 密码 6–64 字符，bcrypt 另限制 UTF-8 长度不超过 72 字节。用户名 3–32 位字母、数字或下划线，统一小写。JWT 默认有效 8 小时。
 
@@ -131,14 +133,14 @@ $env:INGEST_TOKEN='<登录接口返回的 token>'
 curl.exe -X POST http://127.0.0.1:7777/api/ingest -H "Authorization: Bearer $env:INGEST_TOKEN" -F "file=@D:/资料/说明.pdf"
 curl.exe http://127.0.0.1:7777/api/ingest/status/<fileId> -H "Authorization: Bearer $env:INGEST_TOKEN"
 # 单独测试各转换器（stdout 为 Markdown）
-./.venv/Scripts/python.exe -m backend.tools.pdf_to_md "D:/资料/说明.pdf"
-./.venv/Scripts/python.exe -m backend.tools.docx_to_md "D:/资料/说明.docx"
-./.venv/Scripts/python.exe -m backend.tools.excel_to_md "D:/资料/说明.xlsx"
-./.venv/Scripts/python.exe -m backend.tools.pptx_to_md "D:/资料/说明.pptx"
-./.venv/Scripts/python.exe -m backend.tools.txt_to_md "D:/资料/说明.md"
+./.venv/Scripts/python.exe -m agent.tools.pdf_to_md "D:/资料/说明.pdf"
+./.venv/Scripts/python.exe -m agent.tools.docx_to_md "D:/资料/说明.docx"
+./.venv/Scripts/python.exe -m agent.tools.excel_to_md "D:/资料/说明.xlsx"
+./.venv/Scripts/python.exe -m agent.tools.pptx_to_md "D:/资料/说明.pptx"
+./.venv/Scripts/python.exe -m agent.tools.txt_to_md "D:/资料/说明.md"
 ```
 
-完整源代码已保存到项目。新增文件：`backend/api/ingest.py`、`backend/models/ingest.py`、`backend/migrate_ingest.py`、`backend/services/{converter,chunker,embedder,ingest}.py`、`backend/tools/*.py` 及对应测试。修改文件：`backend/server.py`、`config.py`、`middleware.py`、`models/{knowledge,__init__}.py`、`api/upload.py`、`services/rag.py`、依赖清单、`.env.example`、`.gitignore`、`api.js`、`app.js`、`style.css`、本 README。`agent/server.py` 不修改。
+完整源代码已保存到项目。导入 API、模型和处理服务位于 `backend/`，转换工具位于 `agent/tools/`，测试位于 `backend/tests/`。
 
 ## 后端验证
 
@@ -164,9 +166,9 @@ Agno 流式测试使用真实框架和受控 HTTP 上游，不消耗模型额度
 
 ## 原有 PDF 和 Word 转 Markdown 工具
 
-转换脚本、依赖清单、测试、使用说明与转换示例已集中到 `agent/tools/`。详见 [转换工具说明](agent/tools/README.md)。
+转换脚本位于 `agent/tools/`，依赖统一在 `backend/requirements.txt`，测试在 `backend/tests/`；示例转换结果保留于 `ziliao/md/`。详见 [转换工具说明](agent/tools/README.md)。
 
 ```powershell
-python -m pip install -r agent/tools/requirements.txt
+python -m pip install -r backend/requirements.txt
 python agent/tools/convert_to_md.py ziliao -r
 ```

@@ -1,5 +1,5 @@
 """XLSX/XLS 每个 sheet 转为 Markdown 表格，不执行公式或宏。"""
-from backend.tools.common import run_cli, check_archive, table, MAX_TEXT_CHARS
+from agent.tools.common import run_cli, check_archive, table, MAX_TEXT_CHARS
 
 
 def convert(path):

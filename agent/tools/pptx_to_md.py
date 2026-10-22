@@ -1,5 +1,5 @@
 """PPTX 各页标题、文字、表格与图片占位转 Markdown。"""
-from backend.tools.common import run_cli, check_archive, table
+from agent.tools.common import run_cli, check_archive, table
 
 
 def convert(path):

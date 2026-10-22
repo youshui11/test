@@ -1,5 +1,5 @@
 """PDF 优先 PyMuPDF4LLM 保留结构，图片以文字占位；不自动 OCR。"""
-from backend.tools.common import run_cli
+from agent.tools.common import run_cli
 
 
 def convert(path):

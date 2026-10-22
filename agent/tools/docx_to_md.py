@@ -1,5 +1,5 @@
 """DOCX 段落与表格转 Markdown，复用已有转换器。"""
-from backend.tools.common import run_cli, check_archive
+from agent.tools.common import run_cli, check_archive
 
 
 def convert(path):
