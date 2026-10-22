@@ -1,4 +1,4 @@
-"""CX 必须检索网站资料表，并受当前请求身份与文件范围约束。"""
+"""CX 检索共享资料，仍要求登录上下文且保留显式文件范围。"""
 import os
 import json
 import sys
@@ -18,7 +18,7 @@ from backend.models import User, Upload, Knowledge
 
 
 @pytest.mark.asyncio
-async def test_cx_tool_reads_private_public_table_and_replaces_only_search(monkeypatch):
+async def test_cx_tool_reads_shared_public_table_and_replaces_only_search(monkeypatch):
     from agent.tools.cx_knowledge import knowledge_scope
     url = os.getenv('TEST_DATABASE_URL')
     if not url:
@@ -73,6 +73,10 @@ async def test_cx_tool_reads_private_public_table_and_replaces_only_search(monke
         assert all(row['fileName'] == '09_外观检测相机与追溯接入.pdf' for row in result['results'])
         assert member.tools[0] is search_cx_knowledge
         with knowledge_scope(factory, user_id, ['target-bobby'], embedding):
+            shared = json.loads(await create_agent(settings).members[0].tools[0].entrypoint('相机方案'))
+        assert shared['count'] == 3
+        assert all(row['fileId'] == 'target-bobby' and 'bobby正文' in row['content'] for row in shared['results'])
+        with knowledge_scope(factory, user_id, ['missing-file'], embedding):
             empty = json.loads(await create_agent(settings).members[0].tools[0].entrypoint('相机方案'))
         assert empty['count'] == 0
     finally:

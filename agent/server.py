@@ -76,7 +76,7 @@ pd_team = Team(
     ],
     add_history_to_context=True,
     num_history_runs=3,
-    markdown=True,
+    markdown=False,
 )
 
 # 注册 Team 到 AgentOS

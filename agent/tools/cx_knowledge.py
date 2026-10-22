@@ -1,4 +1,4 @@
-"""CX 工具读取网站 public.knowledge_base，绑定当前请求的用户及附件范围。"""
+"""CX 工具读取共享 public.knowledge_base，要求登录上下文并保留附件范围。"""
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -36,13 +36,13 @@ def make_public_knowledge_tool():
     scope = _scope.get()
 
     @tool(name='search_cx_knowledge',
-          description='从当前用户的 public.knowledge_base 检索最相近的三条资料。',
+          description='从所有账号共享的 public.knowledge_base 检索最相近的三条资料。',
           stop_after_tool_call=True)
     async def search_cx_knowledge(query: str) -> str:
         if scope is None:
             raise ValueError('CX 检索未绑定登录身份，拒绝查询资料')
         table = public_knowledge
-        filters = [table.c.user_id == scope.user_id]
+        filters = []
         if scope.file_ids:
             filters.append(table.c.file_id.in_(scope.file_ids))
         # embedding 网络请求期间不持有数据库事务/连接。

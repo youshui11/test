@@ -24,7 +24,7 @@ def test_live_http_and_restart_persistence(tmp_path):
         listener.bind(('127.0.0.1', 0))
         port = listener.getsockname()[1]
     origin = f'http://127.0.0.1:{port}'
-    environment = dict(os.environ, LLM_API_KEY='', EMBEDDING_API_KEY='', LLM_CONFIG_SOURCE='env')
+    environment = dict(os.environ, LLM_API_KEY='', EMBEDDING_API_KEY='', OPENAI_API_KEY='', LLM_CONFIG_SOURCE='env')
 
     @contextmanager
     def running():
@@ -74,7 +74,9 @@ def test_live_http_and_restart_persistence(tmp_path):
             headers = {'Authorization': 'Bearer ' + login.json()['token']}
             session = http.post('/api/sessions', headers=headers, json={}).json()['sessionId']
             stream = http.post(f'/api/sessions/{session}/messages', headers=headers, json={'content': 'test'})
-            assert 'event: error' in stream.text and 'LLM_API_KEY' in stream.text
+            # 共享库可能已有资料，检索先于模型生成，缺失 embedding 或聊天密钥均须明确报错。
+            assert 'event: error' in stream.text
+            assert any(name in stream.text for name in ('LLM_API_KEY', 'EMBEDDING_API_KEY'))
         with running() as http:
             rows = http.get('/api/sessions', headers=headers).json()
             assert rows[0]['sessionId'] == session

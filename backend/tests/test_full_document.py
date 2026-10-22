@@ -1,4 +1,4 @@
-"""全文请求必须返回指定资料的所有片段，保持顺序和用户隔离。"""
+"""全文读取共享知识库，保持原文顺序、文件范围和来源消歧。"""
 import asyncio
 
 from backend.tests.test_api import client, account
@@ -30,11 +30,10 @@ def seed(client, username='alice', *, large=False, quote=''):
     asyncio.run(insert())
 
 
-def test_full_document_returns_all_chapters_in_order_without_model(client):
-    headers = account(client)
+def test_full_document_reads_other_accounts_document_in_order_without_model(client):
+    account(client)
     seed(client)
-    account(client, 'bobby')
-    seed(client, 'bobby')
+    headers = account(client, 'bobby')
     session = client.post('/api/sessions', headers=headers, json={}).json()['sessionId']
     response = client.post(f'/api/sessions/{session}/messages', headers=headers,
                            json={'content': '09_外观检测相机与追溯接入.pdf中全部内容'})
@@ -109,7 +108,7 @@ def test_quote_with_multiple_sources_requires_selection(client):
     assert 'event: done' in selected.text, selected.text
 
 
-def test_quote_absent_from_owned_documents_cannot_use_another_users_source(client):
+def test_quote_can_find_another_accounts_source_and_read_full_document(client):
     headers = account(client)
     seed(client)
     account(client, 'bobby')
@@ -117,5 +116,8 @@ def test_quote_absent_from_owned_documents_cannot_use_another_users_source(clien
     session = client.post('/api/sessions', headers=headers, json={}).json()['sessionId']
     response = client.post(f'/api/sessions/{session}/messages', headers=headers,
                            json={'content': '查询「只有其他账号资料中出现的独有原句。」出自哪篇文档，并输出该文档全文'})
-    assert 'event: error' in response.text and '未找到' in response.text
-    assert 'event: delta' not in response.text
+    assert 'event: done' in response.text, response.text
+    answer = client.get(f'/api/sessions/{session}/messages', headers=headers).json()[-1]['content']
+    assert '只有其他账号资料中出现的独有原句。' in answer
+    assert all(f'第{i}章：bobby正文' in answer for i in range(1, 9))
+    assert 'alice正文' not in answer

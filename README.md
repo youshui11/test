@@ -1,6 +1,6 @@
 # 资料查询助手：后端与文档转换工具
 
-后端位于 `backend/`，使用 FastAPI、SQLAlchemy 异步 PostgreSQL、pgvector、Agno。根目录 Vue 前端已接入真实 HTTP API，可注册、登录、上传私有资料、流式聊天及管理员管理会话。
+后端位于 `backend/`，使用 FastAPI、SQLAlchemy 异步 PostgreSQL、pgvector、Agno。根目录 Vue 前端已接入真实 HTTP API，可注册、登录、上传资料、查询共享知识库、流式聊天及管理员管理会话。
 
 ## 后端快速启动（PowerShell）
 
@@ -32,7 +32,7 @@ Copy-Item backend/.env.example backend/.env
 
 网站调用适配在 `backend/agent_adapter.py`，Agent 定义在 `agent/server.py`，检索和转换工具统一位于 `agent/tools/`。源 Agent 保留模型、团队和指令定义，检索工具从工具目录加载。
 
-CX 的 `search_cx_knowledge` 工具使用 `agent/tools/cx_knowledge.py` 的异步检索实现，明确查询 `public.knowledge_base` 的 `chunk_text`、`file_name`、`embedding`，最多返回 3 条。每轮绑定当前登录用户和附件范围，复用网站 embedding 配置，不访问 Agno 默认的 `ai.knowledge_base`。团队与成员每次请求单独复制；未绑定登录身份时拒绝检索。请使用网站后端入口启动，以提供认证和数据库调用上下文。
+CX 的 `search_cx_knowledge` 工具使用 `agent/tools/cx_knowledge.py` 的异步检索实现，明确查询 `public.knowledge_base` 的 `chunk_text`、`file_name`、`embedding`，最多返回 3 条。所有已登录账号共享全部入库资料，显式指定文件时只查询对应文件，复用网站 embedding 配置，不访问 Agno 默认的 `ai.knowledge_base`。团队与成员每次请求单独复制；未绑定登录身份时拒绝检索。请使用网站后端入口启动，以提供认证和数据库调用上下文。
 
 启动配置校验会静态读取所选导出对象的 `DeepSeek(...)` 模型参数，支持字符串/布尔字面量及同文件顶层常量引用，允许团队和成员分别声明模型；实际运行则导入其中的团队或智能体。若改用环境配置独立创建智能体，可设置 `LLM_CONFIG_SOURCE=env` 并填写 `LLM_*`。
 
@@ -75,11 +75,11 @@ CREATE EXTENSION IF NOT EXISTS vector;
 | GET | `/api/admin/sessions` | 管理员汇总列表 |
 | DELETE | `/api/admin/sessions/{id}` | 管理员删除会话并级联删除消息 |
 
-支持 PDF、DOCX、UTF-8 TXT/Markdown；单文件 20 MB、最多 2000 个 500 字片段。扫描 PDF 需先 OCR；空文件、损坏文件和无文字资料拒绝入库。按余弦距离取当前用户私有知识库前 5 块，指定 `fileIds` 时只检索这些文件。资料独立于会话，删除会话不会删除知识库文件。
+支持 PDF、DOCX、UTF-8 TXT/Markdown；单文件 20 MB、最多 2000 个 500 字片段。扫描 PDF 需先 OCR；空文件、损坏文件和无文字资料拒绝入库。普通问答按余弦距离取共享知识库前 5 块，所有已登录账号均可查询其他账号上传的资料正文；指定 `fileIds` 时只检索这些文件。会话、原始附件下载、消息附件归属和导入任务状态仍按账号权限校验，匿名用户不能查询。资料独立于会话，删除会话不会删除知识库文件。
 
 全文查看：输入 `09_外观检测相机与追溯接入.pdf中全部内容`，或为消息添加附件后输入 `请输出全部内容`。后端按文件的 `chunk_index` 顺序返回所有已入库片段，不受普通问答的前 5 块限制，也不经过模型摘要。正文保持入库片段内容，可能包含切分时的重叠文字；不代表恢复原文件版式。同名资料存在多份时需通过附件指定；全文过长时明确提示按章节分段查询，不会静默返回部分内容。
 
-根据原句查来源并查看全文：例如 `查询「空压站仅有总管指针表，支路异常时无法区分设备耗气变化和压力波动。」出自哪篇文档，并输出该文档全文`。系统在当前用户及所选附件范围内匹配引文（忽略排版空白），唯一命中后按文件 ID 读取全部片段并标明文件名；多份资料命中时提示选择，未找到时明确说明，不用相似片段冒充原句出处。
+根据原句查来源并查看全文：例如 `查询「空压站仅有总管指针表，支路异常时无法区分设备耗气变化和压力波动。」出自哪篇文档，并输出该文档全文`。系统在共享知识库及所选文件范围内匹配引文（忽略排版空白），唯一命中后按文件 ID 读取全部片段并标明文件名；多份资料命中时提示选择，未找到时明确说明，不用相似片段冒充原句出处。
 
 密码 6–64 字符，bcrypt 另限制 UTF-8 长度不超过 72 字节。用户名 3–32 位字母、数字或下划线，统一小写。JWT 默认有效 8 小时。
 
@@ -160,7 +160,7 @@ $env:RUN_LIVE_SMOKE='1'
 ./.venv/Scripts/python.exe -m pytest backend/tests/test_live_server.py -q
 ```
 
-快速 API 测试使用临时 SQLite，仅验证业务路由及事务，不替代真实向量测试。PostgreSQL 测试在随机 `test_backend_*` schema 中验证向量排序、用户隔离、级联删除、跨连接锁，并只清理自己创建的 schema。需要测试账号有建 schema 权限；未设置 `TEST_DATABASE_URL` 时明确跳过。
+快速 API 测试使用临时 SQLite，仅验证业务路由及事务，不替代真实向量测试。PostgreSQL 测试在随机测试 schema 中验证共享向量排序、文件范围、级联删除、跨连接锁，并只清理自己创建的 schema。会话和原件权限通过 API 回归测试验证。需要测试账号有建 schema 权限；未设置 `TEST_DATABASE_URL` 时明确跳过。
 
 Agno 流式测试使用真实框架和受控 HTTP 上游，不消耗模型额度。真实付费模型调用还需配置有效密钥后手动上传、提问验证。`backend/requirements-lock.txt` 是本次 Python 3.12 环境的运行与测试依赖快照，可用于复现。
 

@@ -1,4 +1,4 @@
-"""文本提取、embedding 和 pgvector 私有知识库检索。"""
+"""文本提取、embedding 和已登录账号共享的 pgvector 知识库检索。"""
 from pathlib import Path
 import re
 from fastapi import HTTPException
@@ -31,7 +31,8 @@ def extract_text(path: Path, suffix: str) -> str:
 
 async def retrieve(db, user_id: int, question: str, file_ids: list[str], embedder) -> list[dict]:
     # 空知识库无需调用 embedding；普通聊天仍可独立使用。
-    filters = [Knowledge.user_id == user_id]
+    # 路由已校验登录；资料正文对所有账号共享，上传者仅保留为来源信息。
+    filters = []
     if file_ids:
         filters.append(Knowledge.file_id.in_(file_ids))
     # 只有明确索取原文时读取全文；“根据全文总结/分析”等仍走普通问答。
@@ -57,7 +58,7 @@ async def retrieve(db, user_id: int, question: str, file_ids: list[str], embedde
         matches = (await db.execute(select(Knowledge.file_id, Knowledge.file_name).where(
             *filters, normalized_column.contains(normalized_quote, autoescape=True)).distinct().limit(6))).all()
         if not matches:
-            raise HTTPException(404, '未找到与引文完全匹配的当前账号资料，请核对原句或指定文件名')
+            raise HTTPException(404, '未找到与引文完全匹配的知识库资料，请核对原句或指定文件名')
         if len(matches) > 1:
             names = '、'.join(dict.fromkeys(row.file_name for row in matches))
             raise HTTPException(409, f'该引文匹配多份资料：{names}。请指定文件名或附件后读取全文')
@@ -72,7 +73,7 @@ async def retrieve(db, user_id: int, question: str, file_ids: list[str], embedde
             func.count(Knowledge.id), func.sum(func.length(Knowledge.chunk_text)),
             func.count(func.distinct(Knowledge.file_id))).where(*filters))).one()
         if not count:
-            raise HTTPException(404, '未找到该资料的已入库内容，请检查文件名及当前账号')
+            raise HTTPException(404, '未找到该资料的已入库内容，请检查文件名')
         if name and files > 1:
             raise HTTPException(409, '存在多份同名资料，请通过附件指定其中一份')
         # 在读取/输出之前拒绝过大请求，避免先输出半篇才触及 SSE 回复上限。
@@ -87,9 +88,8 @@ async def retrieve(db, user_id: int, question: str, file_ids: list[str], embedde
     vector = validate_vectors(await embedder([question]), 1)[0]
     if db.bind.dialect.name != 'postgresql':
         raise HTTPException(503, '向量检索需要 PostgreSQL/pgvector')
-    # 全局 HNSW 的 ANN 后过滤可能漏掉当前用户的全部资料。先物化私有候选，
-    # 再精确排序，确保用户/文件过滤后的 top 5 可靠；索引留供未来分区优化。
-    candidates = select(Knowledge).where(*filters).cte('private_chunks').prefix_with('MATERIALIZED')
+    # 先物化文件范围内的共享候选，再精确排序，避免 ANN 后过滤漏掉指定资料。
+    candidates = select(Knowledge).where(*filters).cte('knowledge_chunks').prefix_with('MATERIALIZED')
     private_chunk = aliased(Knowledge, candidates)
     distance = private_chunk.embedding.op('<=>', return_type=Float)(
         bindparam('query_embedding', vector, type_=Vector(1536)))

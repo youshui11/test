@@ -1,4 +1,4 @@
-"""上传元数据和 1536 维向量片段；所有者用于检索隔离。"""
+"""上传元数据和共享的 1536 维知识片段；所有者记录来源及原件权限。"""
 from datetime import datetime
 from sqlalchemy import ForeignKey, String, DateTime, JSON, Text, Index
 from sqlalchemy.dialects.postgresql import JSONB

@@ -109,8 +109,10 @@ async def test_pgvector_ranking_isolation_cascade_and_lock():
             async def embedding(texts):
                 return [[1., 0.] + [0.] * 1534]
             result = await retrieve(db, a.id, 'question', [], embedding)
-            assert [item['text'] for item in result] == ['related', 'unrelated']
-            assert await retrieve(db, a.id, 'question', ['b'], embedding) == []
+            assert {item['text'] for item in result[:2]} == {'related', 'private'}
+            assert result[-1]['text'] == 'unrelated'
+            selected = await retrieve(db, a.id, 'question', ['b'], embedding)
+            assert [item['text'] for item in selected] == ['private']
             await db.execute(delete(Session).where(Session.session_id == 'session-test'))
             await db.commit()
             assert await db.scalar(select(Message.id)) is None
