@@ -75,7 +75,7 @@ async def test_postgres_upgrade_and_atomic_ingestion(tmp_path):
             return file_id
 
         good = await prepare('# 标题\n\n这是实际入库的知识资料。')
-        await app.state.ingest.run(good)
+        await app.state.dr.run(good)
         async with factory() as db:
             job = await db.get(IngestJob, good)
             assert job.status == 'completed' and job.chunk_count == 1
@@ -90,7 +90,7 @@ async def test_postgres_upgrade_and_atomic_ingestion(tmp_path):
                 RETURN NEW; END $$'''))
             await conn.execute(text(f'''CREATE TRIGGER fail_second BEFORE INSERT ON "{schema}".knowledge_base
               FOR EACH ROW EXECUTE FUNCTION "{schema}".reject_second_chunk()'''))
-        await app.state.ingest.run(bad)
+        await app.state.dr.run(bad)
         async with factory() as db:
             job = await db.get(IngestJob, bad)
             assert job.status == 'failed' and job.chunk_count == 0
@@ -99,7 +99,7 @@ async def test_postgres_upgrade_and_atomic_ingestion(tmp_path):
         assert list(settings.ingest_temp_dir.iterdir()) == []
     finally:
         if app is not None:
-            await app.state.ingest.close()
+            await app.state.dr.close()
         if created:
             # 仅删除本测试创建的随机 schema，不接受外部路径或 schema 名称。
             async with engine.begin() as conn:

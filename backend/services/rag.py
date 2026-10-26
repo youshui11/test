@@ -39,7 +39,7 @@ async def retrieve(db, user_id: int, question: str, file_ids: list[str], embedde
     full_request = re.fullmatch(
         r'\s*(?:请)?(?:帮我)?(?:输出|列出|显示|提供|查看|读取)?\s*'
         r'(?:[《「“\"\']?(?P<name>.+\.(?:pdf|docx|xlsx|xls|pptx|txt|md))[》」”\"\']?\s*(?:中|的)?)?'
-        r'(?:全部内容|完整内容|全文)[。！!？?\s]*', question, re.IGNORECASE)
+        r'(?:全部内容|完整内容|全文)(?:输出|展示|显示)?[。！!？?\s]*', question, re.IGNORECASE)
     # “查原句出处，并输出该文档全文”先做原文匹配，再按稳定 file_id 展开。
     quotes = re.findall(r'「([^」]+)」|“([^”]+)”|"([^"\n]+)"|『([^』]+)』', question)
     quote = max((part.strip() for group in quotes for part in group if part.strip()), key=len, default='')

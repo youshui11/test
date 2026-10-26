@@ -10,7 +10,7 @@ function apiContext(fetch) {
     sessionStorage: {getItem: () => 'token'}, clearTimeout,
     setTimeout: (fn, ms) => {waits.push(ms); queueMicrotask(fn); return 1;}};
   context.window = context;
-  vm.runInNewContext(fs.readFileSync(require.resolve('../../api.js'), 'utf8'), context);
+  vm.runInNewContext(fs.readFileSync(require.resolve('../../fronted/api.js'), 'utf8'), context);
   return {api: context.api, waits};
 }
 
@@ -49,7 +49,7 @@ function chatContext(api) {
       watch: () => {}, nextTick: async () => {}, onMounted: () => {}, onBeforeUnmount: fn => unmount = fn},
     VueRouter: {createRouter: value => {routes = value.routes; return {beforeEach: () => {}};},
       createWebHashHistory: () => {}, useRouter: () => ({})}};
-  vm.runInNewContext(fs.readFileSync(require.resolve('../../app.js'), 'utf8'), context);
+  vm.runInNewContext(fs.readFileSync(require.resolve('../../fronted/app.js'), 'utf8'), context);
   return {chat: routes.find(route => route.path === '/chat').component.setup(), unmount: () => unmount()};
 }
 

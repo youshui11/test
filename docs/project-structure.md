@@ -12,15 +12,19 @@ test7/
 │  └─ requirements*.txt      统一运行及测试依赖
 ├─ agent/
 │  ├─ server.py              PD 团队与 CX 子智能体定义
+│  ├─ dr.py                  dr 资料导入处理（DRAgent）
 │  └─ tools/                 CX 检索、七格式转换及公共辅助
 ├─ docs/                     说明、历史方案与原始需求文档
 ├─ ziliao/                   原始资料和保留的 Markdown
-├─ index.html                前端页面
-├─ api.js app.js style.css   前端脚本与样式
+├─ fronted/                  前端文件（通过网站根路径提供）
+│  ├─ index.html             前端页面
+│  └─ api.js app.js style.css 前端脚本与样式
 └─ README.md                 使用说明
 ```
 
 后端启动命令不变：在项目根目录执行 `./.venv/Scripts/python.exe -m uvicorn backend.server:app --factory --host 127.0.0.1 --port 7777`。
+
+资料导入由 `agent/dr.py` 的 `DRAgent`（名称 `dr`）处理，后端运行实例为 `app.state.dr`。原 `backend/services/ingest.py` 已迁移移除；HTTP 导入接口和数据库表名不变。
 
 2026-10-22 清理：移除未引用的根目录演示脚本 `agno_agent.py`、失效的演示导入脚本 `ingest_data.py`，以及重复的 `backend/agent/server.py` 和空包入口；将后端适配移为 `backend/agent_adapter.py`，转换与检索工具统一移入 `agent/tools/`，转换测试移入 `backend/tests/`。去除旧 Agent 中不再使用的 Agno 知识库声明及内联检索实现，保留团队、成员、模型和指令。
 

@@ -15,6 +15,11 @@ public_knowledge = Knowledge.__table__.to_metadata(MetaData(), schema='public')
 _scope = ContextVar('cx_knowledge_scope', default=None)
 
 
+def get_knowledge_scope():
+    """Return the authenticated request context shared by document tools."""
+    return _scope.get()
+
+
 @dataclass(frozen=True)
 class SearchScope:
     factory: object

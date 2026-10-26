@@ -34,6 +34,17 @@ def account(client, name='alice'):
     return {'Authorization': 'Bearer ' + response.json()['token']}
 
 
+def test_frontend_files_served_from_fronted(client):
+    from backend.config import ROOT
+    for name, url in [('index.html', '/'), ('api.js', '/api.js'), ('app.js', '/app.js'), ('style.css', '/style.css')]:
+        response = client.get(url + '?v=directory-move')
+        assert response.status_code == 200
+        assert response.content == (ROOT / 'fronted' / name).read_bytes()
+        assert not (ROOT / name).exists()
+    # 移动目录后仍只公开明确列出的资源，不把整个项目作为静态目录。
+    assert client.get('/backend/.env').status_code == 404
+
+
 def test_auth_and_isolation(client):
     a = account(client)
     assert client.post('/api/users', json={'username': 'ALICE', 'password': 'password123'}).status_code == 409

@@ -13,9 +13,13 @@ def isolated_copy(source):
         updates['members'] = [isolated_copy(member) for member in source.members]
     if source.tools:
         from agent.tools.cx_knowledge import make_public_knowledge_tool
-        updates['tools'] = [make_public_knowledge_tool()
-                            if getattr(item, 'name', getattr(item, '__name__', None)) == 'search_cx_knowledge'
-                            else item for item in source.tools]
+        from agent.tools.qwjs_knowledge import make_full_document_tool
+        factories = {'search_cx_knowledge': make_public_knowledge_tool,
+                     'get_document_full_text': make_full_document_tool}
+        updates['tools'] = []
+        for item in source.tools:
+            factory = factories.get(getattr(item, 'name', getattr(item, '__name__', None)))
+            updates['tools'].append(factory() if factory else item)
     return source.deep_copy(update=updates)
 
 

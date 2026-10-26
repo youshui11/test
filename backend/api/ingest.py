@@ -10,7 +10,7 @@ from backend.database import get_db
 from backend.models import User, Upload, IngestJob
 from backend.services.auth import get_current_user
 from backend.services.converter import CONVERTERS
-from backend.services.ingest import job_directory, clean_job_directory
+from agent.dr import job_directory, clean_job_directory
 
 router = APIRouter(prefix='/api/ingest', tags=['导入资料'])
 
@@ -24,7 +24,7 @@ async def ingest(request: Request, file: UploadFile = File(...), user: User = De
         raise HTTPException(415, '不支持的文件格式')
     if not file_name or len(file_name) > 200 or any(ord(char) < 32 for char in file_name):
         raise HTTPException(422, '文件名无效或过长')
-    if request.app.state.ingest.closing:
+    if request.app.state.dr.closing:
         raise HTTPException(503, '服务正在关闭，请稍后重试')
     user_id = user.id
     await db.commit()
@@ -53,7 +53,7 @@ async def ingest(request: Request, file: UploadFile = File(...), user: User = De
         db.add(IngestJob(file_id=file_id))
         with anyio.CancelScope(shield=True):
             await db.commit()
-            request.app.state.ingest.start(file_id)
+            request.app.state.dr.start(file_id)
             accepted = True
         return {'fileId': file_id, 'fileName': file_name, 'chunkCount': 0, 'status': 'processing'}
     finally:

@@ -62,6 +62,33 @@ print(result["output_path"])
 
 在已有 Agno 的 `Agent(...)` 配置中添加 `tools=[convert_file]` 即可让模型按需调用保存工具。如果已有其他工具，将 `convert_file` 追加到同一列表。该工具返回保存路径；需要模型阅读内容时，由调用方读取对应 Markdown。
 
+## QWJS 全文读取工具
+
+`qwjs_knowledge.py` 提供 `make_full_document_tool()`，生成名为 `get_document_full_text` 的 Agno 工具，已在 `agent/server.py` 的 QWJS 子智能体注册。
+
+- 参数 `document_name` 接受文件名或标题中的独特部分；`file_id` 接受 CX 返回的文档 ID。
+- 查询共享 `public.knowledge_base`，优先匹配完整文件名，再按标题匹配；按 `chunk_index` 和 `id` 读取全部片段，不调用 embedding 或向量相似检索。
+- 返回 JSON：`found` 含 `fileId`、`fileName`、`chunkCount`、`content`；`ambiguous` 返回候选标识；另有 `needs_identifier`、`not_found`、`too_large`，不会把截断结果当作全文。
+- 正文超过 90000 字符时要求分段查询或下载原文件。入库时的标题处理、重复上下文和排版变化会保留，返回内容是全部入库片段，并非原文件的逐字副本。
+- 网站聊天适配层会为每次请求重建工具，绑定现有 `knowledge_scope` 登录上下文及附件范围。无登录上下文时拒绝访问；单独运行 AgentOS 不会自动获得网站登录上下文。
+
+用户可直接提问：`请输出公司章程与治理规则.docx的全文。`；如有重名，按工具提示提供文档 ID。
+
+工具工厂的注册方式（已接入，无需重复添加）：
+
+```python
+from agent.tools.qwjs_knowledge import make_full_document_tool
+
+get_document_full_text = make_full_document_tool()
+# qwjs_agent = Agent(..., tools=[get_document_full_text])
+```
+
+全文工具与 Agent 适配回归测试：
+
+```powershell
+python -m pytest backend/tests/test_qwjs_knowledge.py backend/tests/test_agent_source.py backend/tests/test_cx_knowledge.py -q
+```
+
 ## 验证
 
 ```powershell

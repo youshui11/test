@@ -1,4 +1,4 @@
-"""受管理的后台导入任务、原子入库、状态恢复与限定目录清理。"""
+"""dr 导入处理：受管理的后台任务、原子入库、状态恢复与限定目录清理。"""
 import asyncio
 import logging
 from pathlib import Path
@@ -50,7 +50,9 @@ def orphan_directories(root: Path, registered: set[str]):
     return result
 
 
-class IngestManager:
+class DRAgent:
+    name = 'dr'
+
     def __init__(self, app):
         self.app = app
         self.tasks = set()

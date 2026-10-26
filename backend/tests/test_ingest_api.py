@@ -95,7 +95,7 @@ def test_recover_interrupted_task(client):
             await db.flush()
             db.add(IngestJob(file_id=file_id))
             await db.commit()
-        await client.app.state.ingest.recover()
+        await client.app.state.dr.recover()
     asyncio.run(prepare_and_recover())
     data = client.get('/api/ingest/status/' + file_id, headers=headers).json()
     assert data['status'] == 'failed' and '中断' in data['error']
@@ -117,8 +117,8 @@ def test_shutdown_cleans_task_cancelled_before_first_execution(client):
             await db.flush()
             db.add(IngestJob(file_id=file_id))
             await db.commit()
-        client.app.state.ingest.start(file_id)
-        await client.app.state.ingest.close()
+        client.app.state.dr.start(file_id)
+        await client.app.state.dr.close()
     asyncio.run(prepare_and_close())
     data = client.get('/api/ingest/status/' + file_id, headers=headers).json()
     assert data['status'] == 'failed' and not folder.exists()
@@ -134,6 +134,6 @@ def test_recovery_only_cleans_marked_orphan_directories(client):
     user_folder = root / str(uuid4())
     user_folder.mkdir()
     (user_folder / 'keep.txt').write_text('user file', encoding='utf-8')
-    asyncio.run(client.app.state.ingest.recover())
+    asyncio.run(client.app.state.dr.recover())
     assert not orphan.exists()
     assert (user_folder / 'keep.txt').read_text(encoding='utf-8') == 'user file'

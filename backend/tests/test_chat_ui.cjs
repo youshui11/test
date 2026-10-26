@@ -19,7 +19,7 @@ function setupChat(api) {
       createWebHashHistory: () => {}, useRouter: () => ({})
     }
   };
-  vm.runInNewContext(fs.readFileSync(require.resolve('../../app.js'), 'utf8'), context);
+  vm.runInNewContext(fs.readFileSync(require.resolve('../../fronted/app.js'), 'utf8'), context);
   return routes.find(route => route.path === '/chat').component.setup();
 }
 

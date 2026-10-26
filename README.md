@@ -1,6 +1,6 @@
 # 资料查询助手：后端与文档转换工具
 
-后端位于 `backend/`，使用 FastAPI、SQLAlchemy 异步 PostgreSQL、pgvector、Agno。根目录 Vue 前端已接入真实 HTTP API，可注册、登录、上传资料、查询共享知识库、流式聊天及管理员管理会话。
+后端位于 `backend/`，使用 FastAPI、SQLAlchemy 异步 PostgreSQL、pgvector、Agno。Vue 前端位于 `fronted/`（`index.html`、`api.js`、`app.js`、`style.css`），已接入真实 HTTP API，可注册、登录、上传资料、查询共享知识库、流式聊天及管理员管理会话。前端仍由后端通过根路径 `/` 提供，访问地址不变。
 
 ## 后端快速启动（PowerShell）
 
@@ -31,6 +31,8 @@ Copy-Item backend/.env.example backend/.env
 本机使用 `LLM_CONFIG_SOURCE=server`：后端聊天调用 `D:\work\test7\agent\server.py` 的导出对象，优先 `pd_team`，其次 `deepseek_agent`、`cx_agent`。保留源定义的模型、指令和工具；团队及成员每次请求复制并关闭共享 SQLite 历史，网站历史由 PostgreSQL 管理。修改 `agent/server.py` 后需重启后端。
 
 网站调用适配在 `backend/agent_adapter.py`，Agent 定义在 `agent/server.py`，检索和转换工具统一位于 `agent/tools/`。源 Agent 保留模型、团队和指令定义，检索工具从工具目录加载。
+
+资料导入处理模块为 `agent/dr.py`，类名 `DRAgent`、名称 `dr`，后端通过 `app.state.dr` 调用。它负责转换、切分、embedding、原子入库、任务恢复和临时文件清理，不额外调用聊天模型。导入 HTTP 路由、数据库模型与状态查询仍在 `backend/`，接口地址和启动方式不变。
 
 CX 的 `search_cx_knowledge` 工具使用 `agent/tools/cx_knowledge.py` 的异步检索实现，明确查询 `public.knowledge_base` 的 `chunk_text`、`file_name`、`embedding`，最多返回 3 条。所有已登录账号共享全部入库资料，显式指定文件时只查询对应文件，复用网站 embedding 配置，不访问 Agno 默认的 `ai.knowledge_base`。团队与成员每次请求单独复制；未绑定登录身份时拒绝检索。请使用网站后端入口启动，以提供认证和数据库调用上下文。
 
@@ -140,7 +142,7 @@ curl.exe http://127.0.0.1:7777/api/ingest/status/<fileId> -H "Authorization: Bea
 ./.venv/Scripts/python.exe -m agent.tools.txt_to_md "D:/资料/说明.md"
 ```
 
-完整源代码已保存到项目。导入 API、模型和处理服务位于 `backend/`，转换工具位于 `agent/tools/`，测试位于 `backend/tests/`。
+完整源代码已保存到项目。导入 API 与数据库模型位于 `backend/`，导入处理模块位于 `agent/dr.py`，转换工具位于 `agent/tools/`，测试位于 `backend/tests/`。
 
 ## 后端验证
 

@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 global.window = global;
 global.addEventListener = () => {};
 global.sessionStorage = { getItem: () => 'test-token' };
-require('../../api.js');
+require('../../fronted/api.js');
 
 function response(text, chunkSize = 1) {
   const bytes = new TextEncoder().encode(text);

@@ -12,7 +12,7 @@ from backend.api import auth, chat, upload, admin, ingest
 from backend.services import rag, agent
 from backend.middleware import UploadBodyLimit
 from backend.services.converter import convert_file
-from backend.services.ingest import IngestManager
+from agent.dr import DRAgent
 
 
 def create_app(settings: Settings | None = None):
@@ -24,10 +24,10 @@ def create_app(settings: Settings | None = None):
         settings.upload_dir.mkdir(parents=True, exist_ok=True)
         settings.ingest_temp_dir.mkdir(parents=True, exist_ok=True)
         try:
-            await application.state.ingest.recover()
+            await application.state.dr.recover()
             yield
         finally:
-            await application.state.ingest.close()
+            await application.state.dr.close()
             await engine.dispose()
 
     application = FastAPI(title='资料查询助手 API', version='1.0.0', lifespan=lifespan)
@@ -38,7 +38,7 @@ def create_app(settings: Settings | None = None):
     application.state.retrieve = lambda db, uid, q, ids: rag.retrieve(db, uid, q, ids, application.state.embed)
     application.state.answer = partial(agent.stream_answer, settings=settings)
     application.state.convert = partial(convert_file, timeout=settings.converter_timeout_seconds)
-    application.state.ingest = IngestManager(application)
+    application.state.dr = DRAgent(application)
     application.add_middleware(UploadBodyLimit, settings=settings)
     application.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins,
                                 allow_methods=['GET', 'POST', 'DELETE'], allow_headers=['Authorization', 'Content-Type'])
@@ -62,13 +62,13 @@ def create_app(settings: Settings | None = None):
 
     @application.get('/', include_in_schema=False)
     async def index():
-        return FileResponse(ROOT / 'index.html')
+        return FileResponse(ROOT / 'fronted' / 'index.html')
 
     # 不挂载整个项目目录，防止源码、配置及上传资料被匿名读取。
     for name in ['api.js', 'app.js', 'style.css']:
         def static_endpoint(filename):
             async def response():
-                return FileResponse(ROOT / filename)
+                return FileResponse(ROOT / 'fronted' / filename)
             return response
         application.add_api_route('/' + name, static_endpoint(name), include_in_schema=False)
     return application
