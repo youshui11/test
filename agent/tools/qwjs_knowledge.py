@@ -1,6 +1,4 @@
 """QWJS 按文档标识读取已入库的完整正文，不使用向量相似片段代替全文。"""
-import json
-
 from agno.tools import tool
 from sqlalchemy import func, select
 
@@ -25,8 +23,9 @@ def make_full_document_tool():
             file_id: Document ID returned by retrieval; preferred when names are ambiguous.
 
         Returns:
-            JSON with status, source identifiers and content when found; otherwise
-            clarification candidates or an explicit failure status. No truncated full text.
+            The complete document body as plain text or Markdown, without a JSON
+            wrapper. Otherwise a natural-language clarification or failure message.
+            Never returns truncated text as a complete document.
         """
         if scope is None:
             raise ValueError('QWJS 全文工具未绑定登录身份，拒绝查询资料')

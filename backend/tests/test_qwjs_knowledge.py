@@ -1,6 +1,4 @@
 """QWJS 全文工具：真实 SQL 查询、片段顺序、歧义与请求范围。"""
-import json
-
 import pytest
 import pytest_asyncio
 from agno.agent import Agent
@@ -52,43 +50,39 @@ async def invoke(documents, name='', file_id='', attachments=()):
         raise AssertionError('读取全文不能调用 embedding')
     with knowledge_scope(factory, user_id, attachments, no_embedding):
         tool = make_full_document_tool()
-    return json.loads(await tool.entrypoint(document_name=name, file_id=file_id))
+    return await tool.entrypoint(document_name=name, file_id=file_id)
 
 
 @pytest.mark.asyncio
 async def test_exact_name_returns_all_chunks_in_document_order(documents):
     result = await invoke(documents, '公司章程.docx')
-    assert result['status'] == 'found'
-    assert result['fileId'] == 'first'
-    assert result['fileName'] == '公司章程.docx'
-    assert result['chunkCount'] == 3
-    assert result['content'] == '第一段\n\n第二段\n\n第三段'
+    assert result == '第一段\n\n第二段\n\n第三段'
 
 
 @pytest.mark.asyncio
 async def test_title_lookup_and_duplicate_names_require_disambiguation(documents):
-    assert (await invoke(documents, '章程补充'))['content'] == '补充全文'
+    assert await invoke(documents, '章程补充') == '补充全文'
     result = await invoke(documents, '同名.pdf')
-    assert result['status'] == 'ambiguous'
-    assert {item['fileId'] for item in result['candidates']} == {'dup-a', 'dup-b'}
-    assert 'content' not in result
-    assert (await invoke(documents, file_id='dup-b'))['content'] == '乙正文'
+    assert '多份' in result
+    assert 'dup-a' in result and 'dup-b' in result
+    assert '甲正文' not in result and '乙正文' not in result
+    assert await invoke(documents, file_id='dup-b') == '乙正文'
 
 
 @pytest.mark.asyncio
 async def test_attachment_scope_missing_identifier_and_no_match(documents):
-    assert (await invoke(documents, file_id='second', attachments=['first']))['status'] == 'not_found'
-    assert (await invoke(documents, attachments=['first']))['fileId'] == 'first'
-    assert (await invoke(documents))['status'] == 'needs_identifier'
-    assert (await invoke(documents, '不存在'))['status'] == 'not_found'
-    assert (await invoke(documents, '%'))['status'] == 'not_found'
+    assert '未找到' in await invoke(documents, file_id='second', attachments=['first'])
+    assert await invoke(documents, attachments=['first']) == '第一段\n\n第二段\n\n第三段'
+    assert '请提供' in await invoke(documents)
+    assert '未找到' in await invoke(documents, '不存在')
+    assert '未找到' in await invoke(documents, '%')
 
 
 @pytest.mark.asyncio
 async def test_large_document_is_not_returned_as_truncated_full_text(documents):
     result = await invoke(documents, file_id='large')
-    assert result['status'] == 'too_large'
-    assert 'content' not in result
+    assert '过长' in result
+    assert '长' * 100 not in result
 
 
 @pytest.mark.asyncio
@@ -108,8 +102,8 @@ async def test_adapter_binds_a_separate_tool_for_each_request(documents):
         first = isolated_copy(original)
     with knowledge_scope(factory, user_id, ['second'], None):
         second = isolated_copy(original)
-    assert json.loads(await first.tools[0].entrypoint())['fileId'] == 'first'
-    assert json.loads(await second.tools[0].entrypoint())['fileId'] == 'second'
+    assert await first.tools[0].entrypoint() == '第一段\n\n第二段\n\n第三段'
+    assert await second.tools[0].entrypoint() == '补充全文'
     assert original.tools[0] is original_tool
     with pytest.raises(ValueError, match='身份'):
         await original_tool.entrypoint(file_id='first')

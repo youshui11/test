@@ -92,6 +92,7 @@ pd_team = Team(
         use_thinking=False,
     ),
     members=[cx_agent, qwjs_agent],
+    stream_member_events=False,
     mode=TeamMode.coordinate,
     db=db,
     instructions=[

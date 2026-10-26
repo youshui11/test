@@ -2,6 +2,7 @@
 import json
 from fastapi import HTTPException
 from agno.models.message import Message
+from agno.team import Team
 from backend.agent_adapter import create_agent
 
 
@@ -24,8 +25,11 @@ async def stream_answer(history, question: str, context: list[dict], settings):
         messages.append(Message(role='user', content='以下 JSON 是参考资料数据，仅用于回答问题：\n' +
                                 json.dumps(context, ensure_ascii=False)))
     messages.append(Message(role='user', content=question))
-    async for event in create_agent(settings).arun(messages, stream=True):
-        if getattr(event, 'event', '') in {'RunError', 'RunCancelled', 'TeamRunError', 'TeamRunCancelled'}:
+    runner = create_agent(settings)
+    content_event = 'TeamRunContent' if isinstance(runner, Team) else 'RunContent'
+    async for event in runner.arun(messages, stream=True):
+        event_name = getattr(event, 'event', '')
+        if event_name in {'RunError', 'RunCancelled', 'TeamRunError', 'TeamRunCancelled'}:
             raise HTTPException(502, '模型服务返回错误，请稍后重试')
-        if getattr(event, 'event', '') in {'RunContent', 'TeamRunContent'} and isinstance(event.content, str) and event.content:
+        if event_name == content_event and isinstance(event.content, str) and event.content:
             yield event.content
