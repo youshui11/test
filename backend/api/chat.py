@@ -69,13 +69,10 @@ async def send_message(session_id: str, body: ChatInput, request: Request,
                         history_rows = (await read_db.scalars(select(Message).where(Message.session_id == session_id)
                                                               .order_by(Message.id.desc()).limit(12))).all()
                         history = [{'role': m.role, 'content': m.content} for m in reversed(history_rows)]
-                        context = []
-                        if request.app.state.settings.chat_preretrieval_enabled:
-                            context = await request.app.state.retrieve(read_db, user_id, question, body.fileIds)
                     parts = []
                     length = 0
                     with knowledge_scope(factory, user_id, body.fileIds, request.app.state.embed):
-                        async for delta in request.app.state.answer(history, question, context):
+                        async for delta in request.app.state.answer(history, question):
                             if await request.is_disconnected():
                                 return
                             length += len(delta)

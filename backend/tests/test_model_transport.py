@@ -6,7 +6,7 @@ from agno.agent import Agent
 from agno.models.openai import OpenAIChat
 from openai import AsyncOpenAI
 from backend.config import Settings
-from backend.services import agent
+from agent import runtime as agent
 
 
 @pytest.mark.asyncio
@@ -27,13 +27,13 @@ async def test_real_agno_stream_over_openai_transport(monkeypatch):
             real_agent = Agent(model=OpenAIChat(id='test-model', async_client=upstream), telemetry=False)
             monkeypatch.setattr(agent, 'create_agent', lambda settings: real_agent)
             settings = Settings(jwt_secret='x' * 32, llm_api_key='test', llm_config_source='env')
-            result = [part async for part in agent.stream_answer([], '问题', [], settings)]
+            result = [part async for part in agent.stream_answer([], '问题', settings)]
             assert ''.join(result) == '你好世界'
 
 
 @pytest.mark.asyncio
 async def test_server_deepseek_config_sends_supported_roles(tmp_path, monkeypatch):
-    from backend.agent_adapter import create_agent
+    from agent.runtime import create_agent
     source = tmp_path / 'server.py'
     source.write_text('model=DeepSeek(id="deepseek-v4-flash", api_key="test", use_thinking=False)', encoding='utf-8')
     settings = Settings(_env_file=None, jwt_secret='x' * 32, llm_config_source='server', llm_server_config_path=source)

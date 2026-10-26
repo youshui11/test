@@ -8,7 +8,7 @@ from backend.config import Settings
 from backend.database import Base, connect_database
 from backend.models import User, Upload, Knowledge, IngestJob
 from backend.server import create_app
-from backend.migrate_ingest import upgrade
+from backend.manage_db import upgrade
 
 
 @pytest.mark.asyncio

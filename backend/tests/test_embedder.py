@@ -8,7 +8,7 @@ from backend.config import Settings
 
 @pytest.mark.asyncio
 async def test_embedding_batches_and_rate_limit_retries(monkeypatch):
-    from backend.services import embedder
+    from agent import embedding as embedder
     batches, waits = [], []
     calls = 0
     def handle(request):
@@ -38,7 +38,7 @@ async def test_embedding_batches_and_rate_limit_retries(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_rate_limit_stops_after_three_retries(monkeypatch):
-    from backend.services import embedder
+    from agent import embedding as embedder
     calls = []
     def handle(request):
         calls.append(True)
@@ -54,7 +54,7 @@ async def test_rate_limit_stops_after_three_retries(monkeypatch):
 
 
 def test_vectors_reject_invalid_values_and_key_fallback():
-    from backend.services.embedder import validate_vectors
+    from agent.embedding import validate_vectors
     for vectors in [[], [[1., 2.]], [[0.] * 1536], [[float('nan')] * 1536], [[float('inf')] * 1536]]:
         with pytest.raises(ValueError):
             validate_vectors(vectors, 1)
@@ -66,7 +66,7 @@ def test_vectors_reject_invalid_values_and_key_fallback():
 
 @pytest.mark.asyncio
 async def test_invalid_embedding_key_has_actionable_error_without_retry(monkeypatch):
-    from backend.services import embedder
+    from agent import embedding as embedder
     calls = []
     def handle(request):
         calls.append(True)

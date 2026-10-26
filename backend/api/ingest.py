@@ -9,7 +9,7 @@ from starlette.concurrency import run_in_threadpool
 from backend.database import get_db
 from backend.models import User, Upload, IngestJob
 from backend.services.auth import get_current_user
-from backend.services.converter import CONVERTERS
+from agent.tools.converter import CONVERTERS
 from agent.dr import job_directory, clean_job_directory
 
 router = APIRouter(prefix='/api/ingest', tags=['导入资料'])

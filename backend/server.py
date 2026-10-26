@@ -9,10 +9,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from backend.config import Settings, ROOT
 from backend.database import connect_database
 from backend.api import auth, chat, upload, admin, ingest
-from backend.services import rag, agent
+from agent import runtime
 from backend.middleware import UploadBodyLimit
-from backend.services.converter import convert_file
-from backend.services.embedder import embed
+from agent.tools.converter import convert_file
+from agent.embedding import embed
 from agent.dr import DRAgent
 
 
@@ -36,8 +36,7 @@ def create_app(settings: Settings | None = None):
     application.state.engine = engine
     application.state.db = db
     application.state.embed = partial(embed, settings=settings)
-    application.state.retrieve = lambda db, uid, q, ids: rag.retrieve(db, uid, q, ids, application.state.embed)
-    application.state.answer = partial(agent.stream_answer, settings=settings)
+    application.state.answer = partial(runtime.stream_answer, settings=settings)
     application.state.convert = partial(convert_file, timeout=settings.converter_timeout_seconds)
     application.state.dr = DRAgent(application)
     application.add_middleware(UploadBodyLimit, settings=settings)

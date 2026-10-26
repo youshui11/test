@@ -16,7 +16,7 @@
 
 配置复用与 DeepSeek 兼容性变更后的 Python 全量测试为 24 passed，包含真实 PostgreSQL 和服务重启测试。embedding 密钥仍未配置，真实 embedding 文件入库尚未验证。
 
-管理员没有预置公开密码。使用 `python -m backend.init_db --admin admin` 交互设置密码。普通账号通过前端注册。
+管理员没有预置公开密码。使用 `python -m backend.manage_db init --admin admin` 交互设置密码。普通账号通过前端注册。
 
 后台启动使用 127.0.0.1:7777；日志在 backend/data/server.*.log，进程号在 backend/data/server.pid。修改环境配置后需重启该服务。
 

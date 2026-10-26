@@ -27,7 +27,6 @@ class Settings(BaseSettings):
     llm_server_config_path: Path = ROOT / 'agent' / 'server.py'
     llm_provider: Literal['openai', 'deepseek'] = 'openai'
     llm_use_thinking: bool | None = None
-    chat_preretrieval_enabled: bool = False
     embedding_api_key: SecretStr = SecretStr('')
     openai_api_key: SecretStr = SecretStr('')
     embedding_base_url: str = 'https://api.openai.com/v1'
@@ -40,7 +39,7 @@ class Settings(BaseSettings):
         if not self.embedding_api_key.get_secret_value():
             self.embedding_api_key = self.openai_api_key
         if self.llm_config_source == 'server':
-            from backend.server_config import read_server_model_config
+            from agent.model_config import read_server_model_config
             config = read_server_model_config(self.llm_server_config_path)
             self.llm_api_key = SecretStr(config.pop('llm_api_key'))
             for name, value in config.items():

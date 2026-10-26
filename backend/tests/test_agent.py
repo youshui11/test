@@ -5,7 +5,7 @@ from agno.run.agent import RunContentEvent, RunErrorEvent
 from agno.agent import Agent
 from agno.team import Team
 from backend.config import Settings
-from backend.services import agent
+from agent import runtime as agent
 
 
 @pytest.mark.asyncio
@@ -17,7 +17,7 @@ async def test_agno_error_event_rejects_partial_response(monkeypatch):
     monkeypatch.setattr(agent, 'create_agent', lambda _: EventSource())
     settings = Settings(jwt_secret='x' * 32, llm_api_key='test-key', llm_config_source='env')
     with pytest.raises(HTTPException, match='模型服务'):
-        async for _ in agent.stream_answer([], 'hello', [], settings):
+        async for _ in agent.stream_answer([], 'hello', settings):
             pass
 
 
@@ -32,7 +32,7 @@ async def test_team_content_is_streamed_and_team_error_is_not_success(monkeypatc
     settings = Settings(_env_file=None, jwt_secret='x' * 32, llm_api_key='test', llm_config_source='env')
     parts = []
     with pytest.raises(HTTPException, match='模型服务'):
-        async for part in agent.stream_answer([], 'hello', [], settings):
+        async for part in agent.stream_answer([], 'hello', settings):
             parts.append(part)
     assert parts == ['团队回复']
 
@@ -50,5 +50,5 @@ async def test_only_main_callers_content_event_is_forwarded(monkeypatch, team_mo
 
     monkeypatch.setattr(agent, 'create_agent', lambda _: EventSource(**({'members': []} if team_mode else {})))
     settings = Settings(_env_file=None, jwt_secret='x' * 32, llm_api_key='test', llm_config_source='env')
-    parts = [part async for part in agent.stream_answer([], 'hello', [], settings)]
+    parts = [part async for part in agent.stream_answer([], 'hello', settings)]
     assert parts == (['团队正文'] if team_mode else ['单智能体正文'])

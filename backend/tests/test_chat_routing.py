@@ -1,4 +1,4 @@
-"""聊天默认不预检索，历史与工具身份仍可传递，支持显式开启旧流程。"""
+"""聊天仅传真实历史与当前问题，资料由身份绑定的工具按需读取。"""
 import asyncio
 
 from agno.agent import Agent
@@ -9,7 +9,7 @@ from backend.tests.test_api import client, account
 
 
 def test_chat_passes_only_real_history_and_question_without_prefetch(client, monkeypatch):
-    from backend.services import agent
+    from agent import runtime as agent
     from agent.tools.cx_knowledge import get_knowledge_scope
 
     headers = account(client)
@@ -27,7 +27,6 @@ def test_chat_passes_only_real_history_and_question_without_prefetch(client, mon
             yield RunContentEvent(content='仅回答当前问题')
 
     client.app.state.settings.llm_api_key = SecretStr('test')
-    client.app.state.retrieve = forbidden
     client.app.state.embed = forbidden
     monkeypatch.setattr(agent, 'create_agent', lambda _: ChatAgent())
     for question in ('hi', '我刚刚问了什么'):
@@ -39,26 +38,9 @@ def test_chat_passes_only_real_history_and_question_without_prefetch(client, mon
     ]
 
 
-def test_prefetch_can_be_explicitly_enabled_for_rollback(client):
-    headers = account(client)
-    session = client.post('/api/sessions', headers=headers, json={}).json()['sessionId']
-    client.app.state.settings.chat_preretrieval_enabled = True
-
-    async def retrieve(*args):
-        return [{'fileId': 'file', 'fileName': '资料.md', 'text': '回滚流程资料'}]
-
-    async def answer(history, question, context):
-        yield context[0]['text']
-
-    client.app.state.retrieve = retrieve
-    client.app.state.answer = answer
-    reply = client.post(f'/api/sessions/{session}/messages', headers=headers, json={'content': '资料问题'})
-    assert 'event: done' in reply.text and '回滚流程资料' in reply.text
-
-
 def test_full_text_tool_receives_authenticated_scope_without_prefetch(client, monkeypatch):
     from agent.tools.qwjs_knowledge import make_full_document_tool
-    from backend.services import agent
+    from agent import runtime as agent
     from backend.models import Knowledge, Upload, User
     from sqlalchemy import select
     from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -87,7 +69,6 @@ def test_full_text_tool_receives_authenticated_scope_without_prefetch(client, mo
             yield RunContentEvent(content=result)
 
     client.app.state.settings.llm_api_key = SecretStr('test')
-    client.app.state.retrieve = forbidden
     client.app.state.embed = forbidden
     monkeypatch.setattr(agent, 'create_agent', lambda _: FullTextAgent())
     session = client.post('/api/sessions', headers=headers, json={}).json()['sessionId']

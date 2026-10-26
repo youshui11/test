@@ -8,7 +8,7 @@ from agno.tools import tool
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import MetaData, select, bindparam, Float
 from backend.models import Knowledge
-from backend.services.embedder import validate_vectors
+from agent.embedding import validate_vectors
 
 
 public_knowledge = Knowledge.__table__.to_metadata(MetaData(), schema='public')

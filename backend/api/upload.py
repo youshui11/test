@@ -11,7 +11,8 @@ from backend.database import get_db
 from backend.models import User, Upload, Knowledge
 from backend.services.auth import get_current_user
 from backend.services.chat import public_file
-from backend.services.rag import chunk_text, extract_text, validate_vectors
+from agent.tools.attachments import chunk_text, extract_text
+from agent.embedding import validate_vectors
 
 router = APIRouter(prefix='/api', tags=['文件'])
 logger = logging.getLogger(__name__)

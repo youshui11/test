@@ -1,12 +1,13 @@
 """真实 pgvector 集成；仅在指定 TEST_DATABASE_URL 时创建并清理随机测试 schema。"""
 import os
+import json
 from uuid import uuid4
 import pytest
 from sqlalchemy import text, select, delete
 from backend.config import Settings
 from backend.database import Base, connect_database
 from backend.models import User, Session, Message, Upload, Knowledge
-from backend.services.rag import retrieve
+from agent.tools.cx_knowledge import knowledge_scope, make_public_knowledge_tool
 from backend.services.chat import generation_lock
 
 
@@ -86,7 +87,7 @@ async def test_pgvector_ranking_isolation_cascade_and_lock():
                 '请先由超级用户在目标数据库启用 vector 扩展'
             await connection.execute(text(f'CREATE SCHEMA "{schema}"'))
             created = True
-        isolated = engine.execution_options(schema_translate_map={None: schema})
+        isolated = engine.execution_options(schema_translate_map={None: schema, 'public': schema})
         from sqlalchemy.ext.asyncio import async_sessionmaker
         factory = async_sessionmaker(isolated, expire_on_commit=False)
         async with isolated.begin() as connection:
@@ -108,11 +109,13 @@ async def test_pgvector_ranking_isolation_cascade_and_lock():
             await db.commit()
             async def embedding(texts):
                 return [[1., 0.] + [0.] * 1534]
-            result = await retrieve(db, a.id, 'question', [], embedding)
-            assert {item['text'] for item in result[:2]} == {'related', 'private'}
-            assert result[-1]['text'] == 'unrelated'
-            selected = await retrieve(db, a.id, 'question', ['b'], embedding)
-            assert [item['text'] for item in selected] == ['private']
+            with knowledge_scope(factory, a.id, [], embedding):
+                result = json.loads(await make_public_knowledge_tool().entrypoint('question'))['results']
+            assert {item['content'] for item in result[:2]} == {'related', 'private'}
+            assert result[-1]['content'] == 'unrelated'
+            with knowledge_scope(factory, a.id, ['b'], embedding):
+                selected = json.loads(await make_public_knowledge_tool().entrypoint('question'))['results']
+            assert [item['content'] for item in selected] == ['private']
             await db.execute(delete(Session).where(Session.session_id == 'session-test'))
             await db.commit()
             assert await db.scalar(select(Message.id)) is None

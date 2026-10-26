@@ -27,17 +27,18 @@ Copy-Item backend/.env.example backend/.env
 | `EMBEDDING_API_KEY` / `EMBEDDING_BASE_URL` / `EMBEDDING_MODEL` | 独立配置 embedding 服务，必须支持 1536 维向量及 `dimensions` 参数；默认 `text-embedding-3-small` |
 | `CORS_ORIGINS` | JSON 数组，列出允许访问 API 的前端来源 |
 | `MODEL_TIMEOUT_SECONDS` | 单轮检索和生成的总超时，默认 120 秒 |
-| `CHAT_PRERETRIEVAL_ENABLED` | 默认 `false`，聊天不自动预检索；设为 `true` 可恢复旧预检索流程 |
 
 本机使用 `LLM_CONFIG_SOURCE=server`：后端聊天调用 `D:\work\test7\agent\server.py` 的导出对象，优先 `pd_team`，其次 `deepseek_agent`、`cx_agent`。保留源定义的模型、指令和工具；团队及成员每次请求复制并关闭共享 SQLite 历史，网站历史由 PostgreSQL 管理。修改 `agent/server.py` 后需重启后端。
 
-网站调用适配在 `backend/agent_adapter.py`，Agent 定义在 `agent/server.py`，检索和转换工具统一位于 `agent/tools/`。源 Agent 保留模型、团队和指令定义，检索工具从工具目录加载。
+网站调用适配在 `agent/runtime.py`，Agent 定义在 `agent/server.py`，检索和转换工具统一位于 `agent/tools/`。源 Agent 保留模型、团队和指令定义，检索工具从工具目录加载。
+
+`agent/runtime.py` 同时负责历史消息整理和流式正文输出；向量服务统一位于 `agent/embedding.py`。知识库结构化切分、转换子进程调度分别位于 `agent/tools/chunker.py`、`agent/tools/converter.py`。`backend/services/` 保留网站认证和会话服务，详细目录见 [项目结构](docs/project-structure.md)。
 
 资料导入处理模块为 `agent/dr.py`，类名 `DRAgent`、名称 `dr`，后端通过 `app.state.dr` 调用。它负责转换、切分、embedding、原子入库、任务恢复和临时文件清理，不额外调用聊天模型。导入 HTTP 路由、数据库模型与状态查询仍在 `backend/`，接口地址和启动方式不变。
 
 CX 的 `search_cx_knowledge` 工具使用 `agent/tools/cx_knowledge.py` 的异步检索实现，明确查询 `public.knowledge_base` 的 `chunk_text`、`file_name`、`embedding`，最多返回 3 条。所有已登录账号共享全部入库资料，显式指定文件时只查询对应文件，复用网站 embedding 配置，不访问 Agno 默认的 `ai.knowledge_base`。团队与成员每次请求单独复制；未绑定登录身份时拒绝检索。请使用网站后端入口启动，以提供认证和数据库调用上下文。
 
-默认聊天路径为“真实历史与当前问题 → PD → 按需调用 CX 或 QWJS”。后端不再自动调用 `rag.retrieve()`，不主动注入参考资料 JSON；只有实际工具检索时才生成查询 embedding，QWJS 按文件标识读取全文不需要 embedding。登录、会话归属及工具身份/附件范围继续校验。`rag.py` 仍供普通附件提取、切分及旧流程回滚使用，不可直接删除。
+聊天路径为“真实历史与当前问题 → PD → 按需调用 CX 或 QWJS”。后端不执行预检索，也不注入参考资料 JSON；只有实际工具检索时才生成查询 embedding，QWJS 按文件标识读取全文不需要 embedding。登录、会话归属及工具身份/附件范围继续校验。普通附件提取和 500 字切分独立位于 `agent/tools/attachments.py`，向量校验直接使用 `agent/embedding.py`。旧检索模块和回滚开关已移除。
 
 启动配置校验会静态读取所选导出对象的 `DeepSeek(...)` 模型参数，支持字符串/布尔字面量及同文件顶层常量引用，允许团队和成员分别声明模型；实际运行则导入其中的团队或智能体。若改用环境配置独立创建智能体，可设置 `LLM_CONFIG_SOURCE=env` 并填写 `LLM_*`。
 
@@ -51,13 +52,15 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 本机 PostgreSQL 17 也可运行 `./backend/enable-vector.ps1`，在弹出的本地提示中输入超级用户密码。应用账号需要在目标 schema 中建表的权限，无需日常使用超级用户。
 
+数据库维护统一使用 `backend.manage_db`，显式选择 `check`（只读诊断）、`init`（建表及可选管理员）或 `upgrade`（已有库升级）。原 `backend.check_db`、`backend.init_db`、`backend.migrate_ingest` 模块命令已合并移除；网站启动命令不变。
+
 ```powershell
 # 建表；重复运行保留已有数据，不重置账号
-./.venv/Scripts/python.exe -m backend.init_db
+./.venv/Scripts/python.exe -m backend.manage_db init
 # 已有数据库启用新导入模块前执行；可重复运行，保留已有资料
-./.venv/Scripts/python.exe -m backend.migrate_ingest
+./.venv/Scripts/python.exe -m backend.manage_db upgrade
 # 可选：创建管理员，密码交互输入；已有同名账号不会被自动提权
-./.venv/Scripts/python.exe -m backend.init_db --admin admin
+./.venv/Scripts/python.exe -m backend.manage_db init --admin admin
 # 启动网站后端（智能体定义在 agent/server.py）
 ./.venv/Scripts/python.exe -m uvicorn backend.server:app --factory --host 127.0.0.1 --port 7777
 ```
@@ -84,7 +87,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 全文查看：例如输入 `09_外观检测相机与追溯接入.pdf中全部内容`。默认由 PD 委派 QWJS，通过全文工具按 `chunk_index` 顺序读取全部片段；文件名、标题和文档 ID 均可用于定位。工具返回正文或自然语言提示，不返回 JSON 外壳。同名多份需指定文档 ID，过长时明确提示。正文可能包含切分时的重叠文字，不代表恢复原文件版式；PD 的委派和最终表达遵循 `agent/server.py` 的现有指令。
 
-根据原句查来源并查看全文：例如 `查询「空压站仅有总管指针表，支路异常时无法区分设备耗气变化和压力波动。」出自哪篇文档，并输出该文档全文`。默认流程需 PD 先委派 CX 定位来源，再用 QWJS 读取目标文件；多个候选需确认，不应把相似片段冒充原句出处。若设置 `CHAT_PRERETRIEVAL_ENABLED=true`，则恢复原后端引文精确匹配与直接全文流程。
+根据原句查来源并查看全文：例如 `查询「空压站仅有总管指针表，支路异常时无法区分设备耗气变化和压力波动。」出自哪篇文档，并输出该文档全文`。流程需 PD 先委派 CX 定位来源，再用 QWJS 读取目标文件；多个候选需确认，不应把相似片段冒充原句出处。
 
 密码 6–64 字符，bcrypt 另限制 UTF-8 长度不超过 72 字节。用户名 3–32 位字母、数字或下划线，统一小写。JWT 默认有效 8 小时。
 
@@ -109,7 +112,7 @@ data: {"msgId":"m_...","role":"ai","content":"完整回答","files":[],"time":".
 
 ```powershell
 ./.venv/Scripts/python.exe -m pip install -r backend/requirements.txt
-./.venv/Scripts/python.exe -m backend.migrate_ingest
+./.venv/Scripts/python.exe -m backend.manage_db upgrade
 ```
 
 在 `backend/.env` 配置 `EMBEDDING_API_KEY`（优先）或 `OPENAI_API_KEY`（兼容回退），模型默认 `text-embedding-3-small`，向量固定 1536 维。导入、附件入库和聊天检索共享 embedding 配置。每批 20 个片段；429 最多重试 3 次，间隔 1、2、4 秒，不叠加 SDK 自动重试。
@@ -159,7 +162,7 @@ node --test backend/tests/test_ingest_ui.cjs
 $env:TEST_DATABASE_URL='configured'
 ./.venv/Scripts/python.exe -m pytest backend/tests/test_postgres.py -q
 ./.venv/Scripts/python.exe -m pytest backend/tests/test_ingest_postgres.py -q
-./.venv/Scripts/python.exe -m backend.check_db
+./.venv/Scripts/python.exe -m backend.manage_db check
 # 真实启动、HTTP 和重启持久化验收（仅创建并清理随机测试账号）
 $env:RUN_LIVE_SMOKE='1'
 ./.venv/Scripts/python.exe -m pytest backend/tests/test_live_server.py -q

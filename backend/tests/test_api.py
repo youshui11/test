@@ -13,7 +13,7 @@ def client(tmp_path):
     from backend.config import Settings
     from backend.server import create_app
     app = create_app(Settings(database_url=f'sqlite+aiosqlite:///{tmp_path / "test.db"}',
-                              llm_config_source='env', llm_api_key='', chat_preretrieval_enabled=False,
+                              llm_config_source='env', llm_api_key='',
                               jwt_secret='test-secret-with-at-least-32-characters',
                               upload_dir=tmp_path / 'uploads', ingest_temp_dir=tmp_path / 'ingest'))
     import asyncio
@@ -65,12 +65,9 @@ def test_auth_and_isolation(client):
 def test_stream_persistence_and_failure(client):
     headers = account(client)
     session = client.post('/api/sessions', headers=headers, json={}).json()['sessionId']
-    async def retrieve(*args):
-        return []
     async def answer(*args):
         yield '你好'
         yield '世界'
-    client.app.state.retrieve = retrieve
     client.app.state.answer = answer
     result = client.post(f'/api/sessions/{session}/messages', headers=headers, json={'content': '问题'})
     assert result.headers['content-type'].startswith('text/event-stream')
@@ -119,7 +116,7 @@ def test_static_files_are_allowlisted(client):
 
 
 def test_chunking():
-    from backend.services.rag import chunk_text
+    from agent.tools.attachments import chunk_text
     chunks = chunk_text('中' * 1201)
     assert list(map(len, chunks)) == [500, 500, 201]
     assert ''.join(chunks) == '中' * 1201

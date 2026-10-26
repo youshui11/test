@@ -10,9 +10,9 @@ from sqlalchemy import select, update
 from starlette.concurrency import run_in_threadpool
 from backend.models import Upload, Knowledge, IngestJob
 from backend.models.user import utcnow
-from backend.services.chunker import chunk_markdown
-from backend.services.converter import ConvertError
-from backend.services.embedder import EmbeddingError, validate_vectors
+from agent.tools.chunker import chunk_markdown
+from agent.tools.converter import ConvertError
+from agent.embedding import EmbeddingError, validate_vectors
 
 logger = logging.getLogger(__name__)
 

@@ -6,7 +6,7 @@ from agno.models.deepseek import DeepSeek
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
 from agent.tools.cx_knowledge import knowledge_scope
-from backend.agent_adapter import isolated_copy
+from agent.runtime import isolated_copy
 from backend.database import Base
 from backend.models import Knowledge, Upload, User
 

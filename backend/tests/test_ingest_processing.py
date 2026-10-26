@@ -4,7 +4,7 @@ import pytest
 
 
 def test_semantic_chunks_keep_headings_overlap_and_limits():
-    from backend.services.chunker import chunk_markdown
+    from agent.tools.chunker import chunk_markdown
     paragraph = '这是一句用于验证语义切分和资料上下文的文字。' * 14
     markdown = '# 概述\n\n## 背景\n\n' + '\n\n'.join([paragraph] * 4) + '\n\n## 目标\n\n这是目标。'
     chunks = chunk_markdown(markdown, '说明.md')
@@ -20,7 +20,7 @@ def test_semantic_chunks_keep_headings_overlap_and_limits():
 
 
 def test_long_paragraph_table_and_code_are_preserved():
-    from backend.services.chunker import chunk_markdown
+    from agent.tools.chunker import chunk_markdown
     long = chunk_markdown('# 无标点\n' + '中' * 2500, 'long.md')
     assert len(long) >= 4 and all(len(c.text) <= 800 for c in long)
     assert sum(c.text.count('中') for c in long) >= 2500
@@ -34,7 +34,7 @@ def test_long_paragraph_table_and_code_are_preserved():
 
 @pytest.mark.asyncio
 async def test_text_conversion_and_invalid_file(tmp_path):
-    from backend.services.converter import convert_file, ConvertError
+    from agent.tools.converter import convert_file, ConvertError
     source = tmp_path / '中文.txt'
     source.write_text('中文资料\n第二行', encoding='utf-8')
     assert '中文资料' in await convert_file(source)
@@ -47,7 +47,7 @@ async def test_text_conversion_and_invalid_file(tmp_path):
 
 @pytest.mark.asyncio
 async def test_conversion_drains_large_output_without_deadlock(tmp_path):
-    from backend.services.converter import convert_file
+    from agent.tools.converter import convert_file
     source = tmp_path / 'large.md'
     source.write_text('large document text\n' * 15000, encoding='utf-8')
     text = await convert_file(source, timeout=3)
@@ -55,7 +55,7 @@ async def test_conversion_drains_large_output_without_deadlock(tmp_path):
 
 
 def test_distinct_sentences_overlap_without_losing_content():
-    from backend.services.chunker import chunk_markdown, sentences
+    from agent.tools.chunker import chunk_markdown, sentences
     source = [f'第{i}条资料说明了不同的业务知识和处理步骤。' for i in range(100)]
     chunks = chunk_markdown('# 测试\n\n' + ''.join(source), 'unique.md')
     assert len(chunks) > 2
@@ -65,7 +65,7 @@ def test_distinct_sentences_overlap_without_losing_content():
 
 
 def test_nested_fences_do_not_promote_code_to_headings():
-    from backend.services.chunker import chunk_markdown
+    from agent.tools.chunker import chunk_markdown
     markdown = '# C#\n\n````markdown\n```python\n# keep-as-code\nprint(1)\n```\n````\n\n## 正文\n\n说明。'
     chunks = chunk_markdown(markdown, 'fences.md')
     assert [c.metadata['heading_path'] for c in chunks] == ['C#', 'C# > 正文']
@@ -75,7 +75,7 @@ def test_nested_fences_do_not_promote_code_to_headings():
 
 @pytest.mark.asyncio
 async def test_office_and_pdf_conversion(tmp_path):
-    from backend.services.converter import convert_file, ConvertError
+    from agent.tools.converter import convert_file, ConvertError
     from docx import Document
     from openpyxl import Workbook
     from pptx import Presentation

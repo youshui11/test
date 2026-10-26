@@ -8,7 +8,7 @@ import pytest
 from agno.agent import Agent
 from agno.models.deepseek import DeepSeek
 from agno.team import Team
-from backend.agent_adapter import create_agent
+from agent.runtime import create_agent
 from backend.config import Settings
 from uuid import uuid4
 from sqlalchemy import text
