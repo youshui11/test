@@ -95,7 +95,12 @@
         try {
           const list = await api.getMessages(sessionId);
           // 忽略快速切换会话后返回的旧请求，防止消息串入当前会话。
-          if (!disposed && version === requestId) { messages.value = list; await scrollDown(); }
+          if (!disposed && version === requestId) {
+            messages.value = list;
+            // 先显示消息列表，再等待 DOM 更新；加载占位仍可见时无法滚到真实消息底部。
+            loading.value = false;
+            await scrollDown();
+          }
         } catch (e) { if (version === requestId) loadError.value = e.message; }
         finally { if (version === requestId) loading.value = false; }
       }

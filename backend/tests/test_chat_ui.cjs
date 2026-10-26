@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
-function setupChat(api) {
+function setupChat(api, hooks = {}) {
   let routes;
   const app = { use: () => app, mount: () => {} };
   const context = {
@@ -12,7 +12,7 @@ function setupChat(api) {
     sessionStorage: {getItem: key => key === 'token' ? 'token' : JSON.stringify({username: 'alice', role: 'user'})},
     Vue: {
       createApp: () => app, ref: value => ({value}), computed: fn => ({get value() {return fn();}}),
-      watch: () => {}, nextTick: async () => {}, onMounted: () => {}, onBeforeUnmount: () => {}
+      watch: () => {}, nextTick: hooks.nextTick || (async () => {}), onMounted: hooks.onMounted || (() => {}), onBeforeUnmount: () => {}
     },
     VueRouter: {
       createRouter: options => {routes = options.routes; return {beforeEach: () => {}};},
@@ -42,4 +42,26 @@ test('unconfirmed send failure restores input and removes temporary reply', asyn
   await chat.send();
   assert.equal(chat.draft.value, '问题');
   assert.equal(chat.messages.value.length, 0);
+});
+
+test('switching sessions scrolls after the loading placeholder is replaced by messages', async () => {
+  const chat = setupChat({ getMessages: async id => [{msgId: id, role: 'ai', content: '历史消息'}] });
+  chat.messageBox.value = { scrollTop: 0, get scrollHeight() { return chat.loading.value ? 40 : 1800; } };
+  await chat.selectSession('first');
+  assert.equal(chat.messageBox.value.scrollTop, 1800);
+  chat.messageBox.value.scrollTop = 0;
+  await chat.selectSession('second');
+  assert.equal(chat.messageBox.value.scrollTop, 1800);
+});
+
+test('initial session load also scrolls to the latest message', async () => {
+  let mounted;
+  const chat = setupChat({
+    getSessions: async () => [{sessionId: 'latest'}],
+    getMessages: async () => [{msgId: 'last', role: 'ai', content: '最新消息'}]
+  }, {onMounted: callback => {mounted = callback;}});
+  chat.messageBox.value = { scrollTop: 0, get scrollHeight() { return chat.loading.value ? 40 : 2300; } };
+  await mounted();
+  assert.equal(chat.activeId.value, 'latest');
+  assert.equal(chat.messageBox.value.scrollTop, 2300);
 });
