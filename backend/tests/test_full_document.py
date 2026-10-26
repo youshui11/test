@@ -1,4 +1,4 @@
-"""全文读取共享知识库，保持原文顺序、文件范围和来源消歧。"""
+"""显式启用旧预检索时，全文读取仍保持顺序、文件范围和来源消歧。"""
 import asyncio
 
 from backend.tests.test_api import client, account
@@ -7,6 +7,9 @@ from backend.tests.test_api import client, account
 def seed(client, username='alice', *, large=False, quote=''):
     from sqlalchemy import select
     from backend.models import User, Upload, Knowledge
+
+    # 此文件验证可回滚的旧预检索全文路径；新聊天流程由 test_chat_routing 验证。
+    client.app.state.settings.chat_preretrieval_enabled = True
 
     async def no_embedding(texts):
         raise AssertionError('全文读取不应调用 embedding')

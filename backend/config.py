@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     llm_server_config_path: Path = ROOT / 'agent' / 'server.py'
     llm_provider: Literal['openai', 'deepseek'] = 'openai'
     llm_use_thinking: bool | None = None
+    chat_preretrieval_enabled: bool = False
     embedding_api_key: SecretStr = SecretStr('')
     openai_api_key: SecretStr = SecretStr('')
     embedding_base_url: str = 'https://api.openai.com/v1'

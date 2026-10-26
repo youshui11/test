@@ -27,6 +27,7 @@ Copy-Item backend/.env.example backend/.env
 | `EMBEDDING_API_KEY` / `EMBEDDING_BASE_URL` / `EMBEDDING_MODEL` | 独立配置 embedding 服务，必须支持 1536 维向量及 `dimensions` 参数；默认 `text-embedding-3-small` |
 | `CORS_ORIGINS` | JSON 数组，列出允许访问 API 的前端来源 |
 | `MODEL_TIMEOUT_SECONDS` | 单轮检索和生成的总超时，默认 120 秒 |
+| `CHAT_PRERETRIEVAL_ENABLED` | 默认 `false`，聊天不自动预检索；设为 `true` 可恢复旧预检索流程 |
 
 本机使用 `LLM_CONFIG_SOURCE=server`：后端聊天调用 `D:\work\test7\agent\server.py` 的导出对象，优先 `pd_team`，其次 `deepseek_agent`、`cx_agent`。保留源定义的模型、指令和工具；团队及成员每次请求复制并关闭共享 SQLite 历史，网站历史由 PostgreSQL 管理。修改 `agent/server.py` 后需重启后端。
 
@@ -35,6 +36,8 @@ Copy-Item backend/.env.example backend/.env
 资料导入处理模块为 `agent/dr.py`，类名 `DRAgent`、名称 `dr`，后端通过 `app.state.dr` 调用。它负责转换、切分、embedding、原子入库、任务恢复和临时文件清理，不额外调用聊天模型。导入 HTTP 路由、数据库模型与状态查询仍在 `backend/`，接口地址和启动方式不变。
 
 CX 的 `search_cx_knowledge` 工具使用 `agent/tools/cx_knowledge.py` 的异步检索实现，明确查询 `public.knowledge_base` 的 `chunk_text`、`file_name`、`embedding`，最多返回 3 条。所有已登录账号共享全部入库资料，显式指定文件时只查询对应文件，复用网站 embedding 配置，不访问 Agno 默认的 `ai.knowledge_base`。团队与成员每次请求单独复制；未绑定登录身份时拒绝检索。请使用网站后端入口启动，以提供认证和数据库调用上下文。
+
+默认聊天路径为“真实历史与当前问题 → PD → 按需调用 CX 或 QWJS”。后端不再自动调用 `rag.retrieve()`，不主动注入参考资料 JSON；只有实际工具检索时才生成查询 embedding，QWJS 按文件标识读取全文不需要 embedding。登录、会话归属及工具身份/附件范围继续校验。`rag.py` 仍供普通附件提取、切分及旧流程回滚使用，不可直接删除。
 
 启动配置校验会静态读取所选导出对象的 `DeepSeek(...)` 模型参数，支持字符串/布尔字面量及同文件顶层常量引用，允许团队和成员分别声明模型；实际运行则导入其中的团队或智能体。若改用环境配置独立创建智能体，可设置 `LLM_CONFIG_SOURCE=env` 并填写 `LLM_*`。
 
@@ -77,11 +80,11 @@ CREATE EXTENSION IF NOT EXISTS vector;
 | GET | `/api/admin/sessions` | 管理员汇总列表 |
 | DELETE | `/api/admin/sessions/{id}` | 管理员删除会话并级联删除消息 |
 
-支持 PDF、DOCX、UTF-8 TXT/Markdown；单文件 20 MB、最多 2000 个 500 字片段。扫描 PDF 需先 OCR；空文件、损坏文件和无文字资料拒绝入库。普通问答按余弦距离取共享知识库前 5 块，所有已登录账号均可查询其他账号上传的资料正文；指定 `fileIds` 时只检索这些文件。会话、原始附件下载、消息附件归属和导入任务状态仍按账号权限校验，匿名用户不能查询。资料独立于会话，删除会话不会删除知识库文件。
+普通附件上传支持 PDF、DOCX、UTF-8 TXT/Markdown；单文件 20 MB、最多 2000 个 500 字片段。扫描 PDF 需先 OCR；空文件、损坏文件和无文字资料拒绝入库。默认资料问答由 PD 按需委派 CX 检索，不执行后端的前 5 块预检索。所有已登录账号均可查询其他账号上传的资料正文；指定 `fileIds` 时只检索这些文件。会话、原始附件下载、消息附件归属和导入任务状态仍按账号权限校验，匿名用户不能查询。资料独立于会话，删除会话不会删除知识库文件。
 
-全文查看：输入 `09_外观检测相机与追溯接入.pdf中全部内容`，或为消息添加附件后输入 `请输出全部内容`。后端按文件的 `chunk_index` 顺序返回所有已入库片段，不受普通问答的前 5 块限制，也不经过模型摘要。正文保持入库片段内容，可能包含切分时的重叠文字；不代表恢复原文件版式。同名资料存在多份时需通过附件指定；全文过长时明确提示按章节分段查询，不会静默返回部分内容。
+全文查看：例如输入 `09_外观检测相机与追溯接入.pdf中全部内容`。默认由 PD 委派 QWJS，通过全文工具按 `chunk_index` 顺序读取全部片段；文件名、标题和文档 ID 均可用于定位。工具返回正文或自然语言提示，不返回 JSON 外壳。同名多份需指定文档 ID，过长时明确提示。正文可能包含切分时的重叠文字，不代表恢复原文件版式；PD 的委派和最终表达遵循 `agent/server.py` 的现有指令。
 
-根据原句查来源并查看全文：例如 `查询「空压站仅有总管指针表，支路异常时无法区分设备耗气变化和压力波动。」出自哪篇文档，并输出该文档全文`。系统在共享知识库及所选文件范围内匹配引文（忽略排版空白），唯一命中后按文件 ID 读取全部片段并标明文件名；多份资料命中时提示选择，未找到时明确说明，不用相似片段冒充原句出处。
+根据原句查来源并查看全文：例如 `查询「空压站仅有总管指针表，支路异常时无法区分设备耗气变化和压力波动。」出自哪篇文档，并输出该文档全文`。默认流程需 PD 先委派 CX 定位来源，再用 QWJS 读取目标文件；多个候选需确认，不应把相似片段冒充原句出处。若设置 `CHAT_PRERETRIEVAL_ENABLED=true`，则恢复原后端引文精确匹配与直接全文流程。
 
 密码 6–64 字符，bcrypt 另限制 UTF-8 长度不超过 72 字节。用户名 3–32 位字母、数字或下划线，统一小写。JWT 默认有效 8 小时。
 

@@ -13,7 +13,7 @@ def client(tmp_path):
     from backend.config import Settings
     from backend.server import create_app
     app = create_app(Settings(database_url=f'sqlite+aiosqlite:///{tmp_path / "test.db"}',
-                              llm_config_source='env', llm_api_key='',
+                              llm_config_source='env', llm_api_key='', chat_preretrieval_enabled=False,
                               jwt_secret='test-secret-with-at-least-32-characters',
                               upload_dir=tmp_path / 'uploads', ingest_temp_dir=tmp_path / 'ingest'))
     import asyncio
