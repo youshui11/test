@@ -1,3 +1,5 @@
+# 文件作用：提供普通用户注册和登录接口，校验输入并签发登录令牌。
+# 关联关系：连接 schemas、User 模型及 services/auth.py 的密码哈希和 JWT 功能。
 """用户注册和登录接口。"""
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select

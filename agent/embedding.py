@@ -1,3 +1,5 @@
+# 文件作用：调用向量服务，执行分批请求、限流重试、顺序整理和 1536 维向量校验。
+# 关联关系：供附件上传、DR 导入和 CX 查询复用，服务配置由后端 Settings 提供。
 """统一 embedding：20 条分批、1536 维校验、429 最多三次指数退避重试。"""
 from asyncio import sleep
 import math

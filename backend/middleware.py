@@ -1,3 +1,5 @@
+# 文件作用：在 multipart 解析前校验上传请求体大小，并累计分块传输字节数。
+# 关联关系：由 server.py 安装，保护 /api/upload 与 /api/ingest 请求。
 """在 multipart 解析前限制上传请求体，包含分块传输的累计字节。"""
 from starlette.responses import JSONResponse
 from starlette.exceptions import HTTPException

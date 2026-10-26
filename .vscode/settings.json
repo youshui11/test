@@ -1,3 +1,5 @@
+// 文件作用：保存此工作区的 VS Code Python 环境及包管理器偏好。
+// 关联关系：由 VS Code 读取，使用其支持注释的 JSONC 配置格式。
 {
     "python-envs.defaultEnvManager": "ms-python.python:conda",
     "python-envs.defaultPackageManager": "ms-python.python:conda"

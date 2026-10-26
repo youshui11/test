@@ -1,3 +1,5 @@
+# 文件作用：绑定登录及附件查询范围，构建 CX 工具检索共享知识库的相似片段。
+# 关联关系：由聊天接口设置 knowledge_scope，runtime.py 为请求创建工具，查询时复用向量服务。
 """CX 工具读取共享 public.knowledge_base，要求登录上下文并保留附件范围。"""
 from contextlib import contextmanager
 from contextvars import ContextVar

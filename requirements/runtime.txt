@@ -1,0 +1,23 @@
+# 文件作用：声明网站后端、智能体、向量服务和文档转换所需的 Python 运行依赖。
+# 关联关系：用于部署安装，并由同目录 dev.txt 引用。
+# 后端运行依赖；在 Python 3.12 验证。
+fastapi>=0.115,<1
+uvicorn[standard]>=0.34,<1
+SQLAlchemy>=2.0.36,<2.1
+asyncpg>=0.30,<1
+pgvector>=0.4,<1
+agno>=2.3,<3
+openai>=1.100,<3
+pydantic-settings>=2.7,<3
+python-multipart>=0.0.20,<1
+python-jose[cryptography]>=3.4,<4
+passlib[bcrypt]>=1.7.4,<2
+bcrypt==4.0.1
+httpx>=0.28,<1
+python-docx>=1.1.2,<2
+pdfplumber>=0.11.4,<0.12
+# 新增：导入资料的 PDF、Excel、PPTX 转换。
+pymupdf4llm>=0.0.27,<1
+openpyxl>=3.1,<4
+xlrd>=2.0,<3
+python-pptx>=1.0,<2

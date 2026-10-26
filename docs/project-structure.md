@@ -1,39 +1,76 @@
+<!-- 文件作用：记录当前项目目录、主要模块职责及历次整理迁移。
+关联关系：配合根目录 README 的关系图，解释代码位置和仍保留的后端依赖。 -->
 # 当前项目目录
 
 ```text
 test7/
 ├─ backend/                  后端入口、接口、数据库和网站业务逻辑
 │  ├─ server.py              FastAPI 启动入口
-│  ├─ manage_db.py           数据库 check / init / upgrade 统一命令
 │  ├─ config.py              网站环境配置
 │  ├─ schemas.py             注册、登录与聊天请求校验
 │  ├─ services/auth.py       登录、JWT 和管理员身份校验
 │  ├─ services/chat.py       会话/附件权限、生成锁和 SSE 消息格式
 │  ├─ api/                   认证、聊天、附件、导入和管理接口
 │  ├─ models/                user.py / chat.py / knowledge.py 数据模型
-│  ├─ tests/                 Python 与前端协议回归测试
 │  ├─ data/                  上传、日志、清理备份（不提交）
-│  ├─ .env                   本机配置（不提交）
-│  └─ requirements*.txt      统一运行及测试依赖
+│  └─ .env                   本机配置（不提交）
 ├─ agent/
 │  ├─ server.py              PD 团队与 CX 子智能体定义
 │  ├─ runtime.py             智能体创建、请求隔离与流式回答
 │  ├─ model_config.py        静态解析智能体模型声明，不执行源文件
 │  ├─ embedding.py           向量生成、分批重试与校验
 │  ├─ dr.py                  dr 资料导入处理（DRAgent）
-│  └─ tools/                 CX/QWJS 检索、七格式转换及公共辅助
+│  ├─ tools/                 CX/QWJS 检索、全文查询和使用说明
+│  └─ documents/             七格式转换、附件提取与公共辅助
 │     ├─ attachments.py      普通附件文字提取与固定 500 字符切分
 │     ├─ chunker.py          知识库导入的 Markdown 结构化切分
 │     └─ converter.py        转换子进程调度、超时与取消清理
-├─ docs/                     说明、历史方案与原始需求文档
+├─ tests/                    全项目测试，按功能分类
+│  ├─ backend/               接口、权限、上传、导入和维护命令
+│  ├─ agent/                 智能体、配置、协议、向量及检索工具
+│  ├─ documents/             文档转换和语义切分
+│  ├─ frontend/              Node 前端交互与 SSE 测试
+│  ├─ integration/           可选真实 PostgreSQL 与 HTTP 服务验收
+│  ├─ conftest.py            公共临时数据库与客户端 fixture
+│  └─ helpers.py             注册/登录测试账号辅助
+├─ scripts/                  显式维护命令
+│  ├─ manage_db.py           check / init / upgrade 数据库工具
+│  └─ enable-vector.ps1      本机 PostgreSQL 向量扩展准备
+├─ requirements/             runtime.txt / dev.txt / lock.txt
+├─ docs/                     项目说明与历史设计记录
+│  ├─ verification/          后端、导入、共享检索和全文验收
+│  ├─ requirements/          原始 DOCX 需求资料
+│  └─ superpowers/           设计、计划和实施验证记录
 ├─ ziliao/                   原始资料和保留的 Markdown
-├─ fronted/                  前端文件（通过网站根路径提供）
+├─ frontend/                 前端文件（通过网站根路径提供）
 │  ├─ index.html             前端页面
 │  └─ api.js app.js style.css 前端脚本与样式
-└─ README.md                 使用说明
+├─ 启动项目.bat              一键启动入口（保留原位置）
+└─ README.md                 使用说明与文件调用关系图
 ```
 
 后端启动命令不变：在项目根目录执行 `./.venv/Scripts/python.exe -m uvicorn backend.server:app --factory --host 127.0.0.1 --port 7777`。
+
+## 按相似功能整理
+
+| 原位置 | 当前位置 | 分类依据 |
+| --- | --- | --- |
+| `fronted/` | `frontend/` | 页面、样式和浏览器交互，修正目录拼写 |
+| `agent/tools/` 中的转换、附件与切分模块 | `agent/documents/` | 文档内容处理；`agent/tools/` 保留 CX/QWJS 查询工具 |
+| `backend/tests/` | `tests/` 下五个功能分类 | 测试对象涵盖全项目，公共客户端和账号辅助独立复用 |
+| `backend/manage_db.py`、`backend/enable-vector.ps1` | `scripts/` | 手动执行的环境和数据库维护工具 |
+| `backend/requirements*.txt` | `requirements/runtime.txt`、`dev.txt`、`lock.txt` | Python 运行、开发及固定版本依赖 |
+| `docs/` 下的验收记录 | `docs/verification/` | 集中保存功能验收，和设计、需求及目录说明分开 |
+
+网站入口和 API 不变；维护命令改为 `python -m scripts.manage_db check`、`init` 或 `upgrade`，转换命令改为 `python -m agent.documents.pdf_to_md 文件.pdf` 等。完整 Python 回归使用 `python -m pytest -q`；前端使用 `node --test` 运行 `tests/frontend/` 下的四个 `.cjs` 文件，完整命令见根目录 README。
+
+`agent/server.py` 内容保持不变，其导入的 `agent.tools.cx_knowledge` 和 `agent.tools.qwjs_knowledge` 路径继续有效。现有 `.env`、`backend/data/`、`ziliao/` 以及原始需求资料不迁移。此次整理不更改数据库结构或业务处理算法，也不需要重新导入资料。
+
+查询工具说明见 [资料查询工具](../agent/tools/README.md)，转换工具说明见 [文档转换工具](../agent/documents/README.md)，验收记录见 [验收索引](verification/README.md)。
+
+## 历次整理记录
+
+以下保留各次整理的背景；涉及当时目录的叙述应与上面的当前结构和迁移表对照。
 
 资料导入由 `agent/dr.py` 的 `DRAgent`（名称 `dr`）处理，后端运行实例为 `app.state.dr`。原 `backend/services/ingest.py` 已迁移移除；HTTP 导入接口和数据库表名不变。
 
@@ -41,11 +78,11 @@ test7/
 
 此次仅整理模块归属，不改变处理流程：普通附件继续固定长度切分，DR 导入继续结构化切分，转换保留子进程限制及回收，智能体继续每次请求独立复制。`agent/dr.py` 和知识库工具仍依赖后端模型及登录上下文，转换调度仍使用后端项目根路径配置；`agent/` 尚不是脱离网站后端的独立软件包。
 
-后续后端整理：数据库诊断、初始化和导入升级合并到 `backend/manage_db.py`，分别使用 `python -m backend.manage_db check`、`python -m backend.manage_db init`、`python -m backend.manage_db upgrade`；创建管理员使用 `init --admin admin`，仍交互输入密码。旧 `check_db.py`、`init_db.py`、`migrate_ingest.py` 已移除，旧模块命令需改用上述子命令。命令不带子命令时只显示参数错误，不默认执行初始化。
+后续后端整理：数据库诊断、初始化和导入升级合并到 `scripts/manage_db.py`，分别使用 `python -m scripts.manage_db check`、`python -m scripts.manage_db init`、`python -m scripts.manage_db upgrade`；创建管理员使用 `init --admin admin`，仍交互输入密码。旧 `check_db.py`、`init_db.py`、`migrate_ingest.py` 已移除，旧模块命令需改用上述子命令。命令不带子命令时只显示参数错误，不默认执行初始化。
 
 会话和消息定义合并到 `models/chat.py`；上传、知识片段和导入任务定义集中在 `models/knowledge.py`；模型仍统一从 `backend.models` 导入，表名、字段、约束和索引不变。原单文件请求校验包改为 `backend/schemas.py`，仍使用 `from backend.schemas import ...`。静态模型配置读取从 `backend/server_config.py` 移到 `agent/model_config.py`，仍不执行 `agent/server.py`。本次整理本身不需要数据库迁移。
 
-2026-10-22 清理：移除未引用的根目录演示脚本 `agno_agent.py`、失效的演示导入脚本 `ingest_data.py`，以及重复的 `backend/agent/server.py` 和空包入口；将后端适配移为 `backend/agent_adapter.py`，转换与检索工具统一移入 `agent/tools/`，转换测试移入 `backend/tests/`。去除旧 Agent 中不再使用的 Agno 知识库声明及内联检索实现，保留团队、成员、模型和指令。
+2026-10-22 清理：移除未引用的根目录演示脚本 `agno_agent.py`、失效的演示导入脚本 `ingest_data.py`，以及重复的 `backend/agent/server.py` 和空包入口；将后端适配移为 `backend/agent_adapter.py`，转换与检索工具统一移入 `agent/tools/`，转换测试移入 `tests/`。去除旧 Agent 中不再使用的 Agno 知识库声明及内联检索实现，保留团队、成员、模型和指令。
 
 重复生成的两个 Markdown 样例经 SHA256 核对后删除，原件继续保留在 `ziliao/md/`；工具依赖并入后端已有依赖，删除重复清单。原始 DOCX 需求文档保留在 `docs/requirements/`。测试、说明、原始资料、数据库和上传记录不按“未被运行时导入”判断为无用文件。
 

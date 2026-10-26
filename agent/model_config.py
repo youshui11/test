@@ -1,3 +1,5 @@
+# 文件作用：使用 AST 静态解析智能体源文件中的模型参数和顶层常量。
+# 关联关系：由 backend/config.py 在 server 模式下调用，仅解析声明，不执行智能体源代码。
 """静态读取 agent/server.py 模型元信息；实际 Agent 由调用适配器加载。"""
 import ast
 from pathlib import Path

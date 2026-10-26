@@ -1,0 +1,25 @@
+<!-- 文件作用：网站单页应用的 HTML 入口，声明页面容器、脚本和样式依赖。
+关联关系：由 backend/server.py 返回，加载 api.js、app.js、style.css 和前端 CDN 依赖。 -->
+<!-- 用途：由 FastAPI 提供的 SPA 入口；CDN 提供 Vue 3 与 Vue Router 4，无需构建。 -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#4d6bfe">
+  <title>资料查询助手</title>
+  <!-- 更新界面后递增版本号，避免浏览器复用旧脚本和样式。 -->
+  <link rel="stylesheet" href="./style.css?v=20261026-markdown-1">
+  <script defer src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/vue-router@4.5.0/dist/vue-router.global.prod.js"></script>
+  <!-- Markdown 先解析，再经过 HTML 清理，加载顺序须在应用之前。 -->
+  <script defer src="https://cdn.jsdelivr.net/npm/marked@17.0.1/lib/marked.umd.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/dompurify@3.4.14/dist/purify.min.js"></script>
+  <script defer src="./api.js?v=20261026-markdown-1"></script>
+  <script defer src="./app.js?v=20261026-session-scroll-1"></script>
+</head>
+<body>
+  <div id="app"><div class="boot">正在打开资料查询助手…<br><small>首次加载需要联网获取 Vue CDN 依赖。</small></div></div>
+  <noscript>请启用 JavaScript 后使用此应用。</noscript>
+</body>
+</html>

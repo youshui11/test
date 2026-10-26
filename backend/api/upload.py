@@ -1,3 +1,5 @@
+# 文件作用：处理普通附件上传及鉴权下载，完成提取、固定切分、向量化和原子入库。
+# 关联关系：调用 agent/documents/attachments.py、向量服务和 Upload/Knowledge 模型，并保留原始附件。
 """受限文件上传、原子向量入库与鉴权下载。"""
 import logging
 from pathlib import Path
@@ -11,7 +13,7 @@ from backend.database import get_db
 from backend.models import User, Upload, Knowledge
 from backend.services.auth import get_current_user
 from backend.services.chat import public_file
-from agent.tools.attachments import chunk_text, extract_text
+from agent.documents.attachments import chunk_text, extract_text
 from agent.embedding import validate_vectors
 
 router = APIRouter(prefix='/api', tags=['文件'])

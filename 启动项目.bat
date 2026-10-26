@@ -1,4 +1,6 @@
 @echo off
+REM 文件作用：本机一键启动网站，先检查现有服务，再使用项目虚拟环境运行 Uvicorn。
+REM 关联关系：启动 backend/server.py，同时提供 frontend 页面和后端 API。
 setlocal
 cd /d "%~dp0"
 if errorlevel 1 exit /b 1

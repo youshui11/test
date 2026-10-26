@@ -1,3 +1,5 @@
+# 文件作用：构建 QWJS 工具，按文件标识查找并有序读取全部已入库正文。
+# 关联关系：复用 cx_knowledge.py 的身份和附件上下文，直接查库而不生成查询向量。
 """QWJS 按文档标识读取已入库的完整正文，不使用向量相似片段代替全文。"""
 from agno.tools import tool
 from sqlalchemy import func, select

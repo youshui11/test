@@ -1,3 +1,5 @@
+# 文件作用：定义用户表和 UTC 时间辅助函数，保存账号、密码哈希及角色。
+# 关联关系：由认证服务、用户接口及其他数据模型使用，归属外键关联用户记录。
 """用户表：账号统一小写，密码仅存哈希。"""
 from datetime import datetime, timezone
 from sqlalchemy import String, DateTime, CheckConstraint

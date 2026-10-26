@@ -1,3 +1,5 @@
+# 文件作用：实现密码哈希、JWT 签发、当前用户解析和管理员身份校验。
+# 关联关系：供认证接口、受保护业务接口及管理员初始化使用。
 """JWT 签发与数据库角色校验，bcrypt 在工作线程执行。"""
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, Request

@@ -1,3 +1,5 @@
+# 文件作用：定义注册、登录和聊天请求的 Pydantic 校验规则。
+# 关联关系：由认证及聊天接口使用；维护命令创建管理员时复用 Credentials 校验。
 """请求校验；客户端不能通过注册设置角色。"""
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 

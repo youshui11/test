@@ -1,3 +1,5 @@
+# 文件作用：创建请求隔离的智能体或团队，整理真实历史并处理流式正文和上游错误。
+# 关联关系：由网站 app.state.answer 调用；按配置复制 server.py 定义或创建 env 模式单智能体。
 """智能体运行入口：隔离源定义、整理真实历史并输出流式正文。"""
 from copy import deepcopy
 from fastapi import HTTPException

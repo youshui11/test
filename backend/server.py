@@ -1,3 +1,5 @@
+# 文件作用：创建网站 FastAPI 应用，装配路由、中间件、数据库和智能体服务。
+# 关联关系：由 Uvicorn 启动；提供前端静态文件，并管理 DRAgent 和数据库的生命周期。
 """FastAPI 工厂；启动：python -m uvicorn backend.server:app --factory --port 7777。"""
 from contextlib import asynccontextmanager
 from functools import partial
@@ -11,7 +13,7 @@ from backend.database import connect_database
 from backend.api import auth, chat, upload, admin, ingest
 from agent import runtime
 from backend.middleware import UploadBodyLimit
-from agent.tools.converter import convert_file
+from agent.documents.converter import convert_file
 from agent.embedding import embed
 from agent.dr import DRAgent
 
@@ -62,13 +64,13 @@ def create_app(settings: Settings | None = None):
 
     @application.get('/', include_in_schema=False)
     async def index():
-        return FileResponse(ROOT / 'fronted' / 'index.html')
+        return FileResponse(ROOT / 'frontend' / 'index.html')
 
     # 不挂载整个项目目录，防止源码、配置及上传资料被匿名读取。
     for name in ['api.js', 'app.js', 'style.css']:
         def static_endpoint(filename):
             async def response():
-                return FileResponse(ROOT / 'fronted' / filename)
+                return FileResponse(ROOT / 'frontend' / filename)
             return response
         application.add_api_route('/' + name, static_endpoint(name), include_in_schema=False)
     return application

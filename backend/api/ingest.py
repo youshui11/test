@@ -1,3 +1,5 @@
+# 文件作用：接收知识库资料、登记后台导入任务，并提供当前用户任务状态查询。
+# 关联关系：将资料交给 agent/dr.py 的 DRAgent，通过 Upload/IngestJob 记录状态。
 """POST 资料导入与用户隔离的持久化状态查询。"""
 from pathlib import Path
 from uuid import uuid4
@@ -9,7 +11,7 @@ from starlette.concurrency import run_in_threadpool
 from backend.database import get_db
 from backend.models import User, Upload, IngestJob
 from backend.services.auth import get_current_user
-from agent.tools.converter import CONVERTERS
+from agent.documents.converter import CONVERTERS
 from agent.dr import job_directory, clean_job_directory
 
 router = APIRouter(prefix='/api/ingest', tags=['导入资料'])

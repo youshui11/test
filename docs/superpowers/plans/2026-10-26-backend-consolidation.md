@@ -1,3 +1,5 @@
+<!-- 文件作用：记录后端维护命令、模型、请求校验及配置解析的合并迁移和验证结果。
+关联关系：对应 manage_db.py、models/chat.py、models/knowledge.py、schemas.py 和 model_config.py。 -->
 # Backend consolidation implementation plan
 
 > **For agentic workers:** Use superpowers:executing-plans to implement in the current checkout.

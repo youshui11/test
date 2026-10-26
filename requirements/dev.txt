@@ -1,0 +1,9 @@
+# 文件作用：在运行依赖基础上补充 pytest、异步测试、SQLite 和测试夹具依赖。
+# 关联关系：用于安装根目录 tests 下各功能分类的开发验证环境。
+# 测试依赖；SQLite 仅用于快速 API 测试，不替代正式 PostgreSQL。
+-r runtime.txt
+pytest>=8,<10
+pytest-asyncio>=0.25,<2
+aiosqlite>=0.20,<1
+# 仅用于生成旧版 XLS 测试夹具。
+xlwt>=1.3,<2

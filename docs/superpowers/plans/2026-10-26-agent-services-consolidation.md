@@ -1,3 +1,5 @@
+<!-- 文件作用：记录智能体执行与文档处理服务迁入 agent 的整理范围和验证结果。
+关联关系：解释 runtime.py、embedding.py 和 agent/tools 的职责归属及保留约束。 -->
 # Agent services consolidation implementation plan
 
 > **For agentic workers:** Use superpowers:executing-plans to implement this plan in the current session.

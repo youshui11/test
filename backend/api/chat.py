@@ -1,3 +1,5 @@
+# 文件作用：管理会话和消息，校验权限，运行聊天生成并通过 SSE 返回回答。
+# 关联关系：调用 services/chat.py 和 app.state.answer，绑定知识工具身份范围，成功后保存整轮消息。
 """会话与 SSE 流；回答成功后才原子写入整轮消息。"""
 import asyncio
 import logging

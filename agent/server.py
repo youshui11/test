@@ -1,3 +1,5 @@
+# 文件作用：定义 PD 团队、CX/QWJS 成员、模型、提示词及资料工具，并提供独立 AgentOS 入口。
+# 关联关系：网站在 server 模式下由 runtime.py 读取并复制源定义；模型元信息由 model_config.py 静态解析。
 from agent.tools.cx_knowledge import make_public_knowledge_tool
 from agent.tools.qwjs_knowledge import make_full_document_tool
 

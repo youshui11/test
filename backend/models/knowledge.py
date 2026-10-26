@@ -1,3 +1,5 @@
+# 文件作用：定义附件元数据、知识片段及导入任务表，并声明向量检索索引。
+# 关联关系：连接普通附件、DR 导入、CX 检索和 QWJS 全文读取，统一保存入库资料。
 """上传元数据和共享的 1536 维知识片段；所有者记录来源及原件权限。"""
 from datetime import datetime
 from sqlalchemy import ForeignKey, String, DateTime, JSON, Text, Index, CheckConstraint

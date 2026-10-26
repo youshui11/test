@@ -1,3 +1,5 @@
+# 文件作用：提供管理员会话汇总、查看和删除功能。
+# 关联关系：使用 require_admin 校验角色，查询或删除会话及关联消息。
 """管理员会话汇总及数据库级联删除。"""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func, delete

@@ -1,3 +1,5 @@
+# 文件作用：定义 ORM Base，创建异步数据库引擎、会话工厂和请求级数据库依赖。
+# 关联关系：供数据模型、业务接口、应用入口及维护命令复用，不自动修改表结构。
 """异步数据库引擎和请求级会话；不在启动时隐式更改表结构。"""
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker

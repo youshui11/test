@@ -1,3 +1,5 @@
+# 文件作用：定义会话和消息表，保存用户归属、会话版本、聊天内容及附件引用。
+# 关联关系：供聊天和管理接口读写，使用外键级联删除及版本控制保护一致性。
 """会话与消息模型：归属、版本校验、级联删除和附件引用。"""
 from datetime import datetime
 from sqlalchemy import String, ForeignKey, DateTime, JSON, Text, CheckConstraint

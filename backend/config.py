@@ -1,3 +1,5 @@
+# 文件作用：集中读取网站环境配置，校验密钥和限制参数并解析模型配置来源。
+# 关联关系：供 server.py、manage_db.py 等使用；server 模式调用 agent/model_config.py 静态解析模型声明。
 """环境配置；正式启动必须提供独立 JWT 密钥。"""
 from pathlib import Path
 from typing import Literal

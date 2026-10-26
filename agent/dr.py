@@ -1,3 +1,5 @@
+# 文件作用：管理知识库后台导入，协调转换、语义切分、向量入库、任务恢复和临时目录清理。
+# 关联关系：由 backend/server.py 创建 DRAgent，供导入接口启动任务并由应用生命周期统一收尾。
 """dr 导入处理：受管理的后台任务、原子入库、状态恢复与限定目录清理。"""
 import asyncio
 import logging
@@ -10,8 +12,8 @@ from sqlalchemy import select, update
 from starlette.concurrency import run_in_threadpool
 from backend.models import Upload, Knowledge, IngestJob
 from backend.models.user import utcnow
-from agent.tools.chunker import chunk_markdown
-from agent.tools.converter import ConvertError
+from agent.documents.chunker import chunk_markdown
+from agent.documents.converter import ConvertError
 from agent.embedding import EmbeddingError, validate_vectors
 
 logger = logging.getLogger(__name__)
